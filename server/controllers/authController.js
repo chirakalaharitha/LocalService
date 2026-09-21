@@ -108,10 +108,6 @@ const registerUser = async (req, res, next) => {
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes validity
     const resendCooldown = new Date(Date.now() + 60 * 1000); // 60 seconds cooldown
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[AUTH REGISTRATION OTP] Generated OTP for ${normalizedEmail}: ${otpNumber}`);
-    }
-
     // 10. ATTEMPT EMAIL TRANSMISSION FIRST - DO NOT CLAIM SENT IF FAILED
     const emailResult = await sendEmailVerificationOtp({
       to: normalizedEmail,
@@ -124,10 +120,7 @@ const registerUser = async (req, res, next) => {
         error: emailResult?.error || 'Unknown error',
         code: emailResult?.code || 'EMAIL_FAILED'
       });
-      const isDev = process.env.NODE_ENV !== 'production';
-      const userMessage = isDev
-        ? `Unable to send verification email: ${emailResult?.error || 'SMTP delivery failed'}. Please configure SMTP_USER and SMTP_PASS in server/.env.`
-        : 'Unable to send verification email. Please try again.';
+      const userMessage = "We couldn't send the verification email right now. Please try again in a few moments.";
 
       return res.status(503).json({
         success: false,
@@ -370,7 +363,7 @@ const resendVerificationOtp = async (req, res, next) => {
       console.error(`[RESEND EMAIL FAILED] Could not send OTP to ${user.email}: ${emailResult?.error || 'Unknown error'}`);
       return res.status(503).json({
         success: false,
-        message: 'Unable to send verification email. Please try again.'
+        message: "We couldn't send the verification email right now. Please try again in a few moments."
       });
     }
 
@@ -701,7 +694,7 @@ const forgotPassword = async (req, res, next) => {
 
       return res.status(503).json({
         success: false,
-        message: 'Unable to send password reset email. Please try again later.'
+        message: "We couldn't send the verification email right now. Please try again in a few moments."
       });
     }
 

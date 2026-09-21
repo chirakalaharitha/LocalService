@@ -14,7 +14,7 @@ if (fs.existsSync(serverEnvPath)) dotenv.config({ path: serverEnvPath, override:
  */
 const createTransporter = () => {
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = parseInt(process.env.SMTP_PORT || '465', 10);
+  const port = Number(process.env.SMTP_PORT || 587);
   const isSecure = process.env.SMTP_SECURE !== undefined
     ? process.env.SMTP_SECURE === 'true'
     : port === 465;
@@ -22,18 +22,18 @@ const createTransporter = () => {
   return nodemailer.createTransport({
     host,
     port,
-    secure: isSecure,
+    secure: isSecure, // false for port 587 (uses STARTTLS)
     auth: {
       user: (process.env.SMTP_USER || '').trim(),
       pass: (process.env.SMTP_PASS || '').trim()
     },
     tls: {
-      rejectUnauthorized: process.env.NODE_ENV === 'production'
+      rejectUnauthorized: false
     },
     // Safe timeouts to avoid hanging requests if SMTP host is blocked/slow
-    connectionTimeout: 10000,
+    connectionTimeout: 15000,
     greetingTimeout: 10000,
-    socketTimeout: 15000
+    socketTimeout: 20000
   });
 };
 
@@ -45,32 +45,17 @@ const verifyEmailTransporter = async () => {
   const hasPass = Boolean(process.env.SMTP_PASS && process.env.SMTP_PASS.trim());
 
   if (!hasUser || !hasPass) {
-    console.warn('---------------------------------------------------------');
-    console.warn('[EMAIL WARNING] SMTP_USER or SMTP_PASS is missing in server/.env');
-    console.warn('[EMAIL WARNING] Real email delivery is currently OFFLINE.');
-    console.warn('[EMAIL WARNING] Please configure valid SMTP credentials in server/.env.');
-    console.warn('---------------------------------------------------------');
-    return { ready: false, error: 'SMTP credentials missing in server/.env' };
+    console.warn('[EMAIL DIAGNOSTIC] SMTP credentials (SMTP_USER or SMTP_PASS) not configured in server/.env');
+    return { ready: false, error: 'SMTP credentials not configured in server/.env' };
   }
 
   try {
     const transporter = createTransporter();
     await transporter.verify();
-    console.log('---------------------------------------------------------');
-    console.log(`[EMAIL READY] SMTP connection verified successfully with ${process.env.SMTP_HOST || 'smtp.gmail.com'}:${process.env.SMTP_PORT || '465'}`);
-    console.log(`[EMAIL READY] Outgoing sender: ${process.env.SMTP_FROM || process.env.SMTP_USER}`);
-    console.log('---------------------------------------------------------');
+    console.log(`[EMAIL READY] SMTP transporter connection verified with ${process.env.SMTP_HOST || 'smtp.gmail.com'}:${process.env.SMTP_PORT || 587}`);
     return { ready: true };
   } catch (error) {
-    console.error('---------------------------------------------------------');
-    console.error('[EMAIL SMTP ERROR] Connection verification failed:');
-    console.error({
-      code: error.code,
-      command: error.command,
-      responseCode: error.responseCode,
-      message: error.message
-    });
-    console.error('---------------------------------------------------------');
+    console.error('[EMAIL ERROR] SMTP connection verification failed:', error.message);
     return { ready: false, error: error.message, code: error.code };
   }
 };
@@ -324,14 +309,14 @@ const sendPasswordResetOtpEmail = async ({ to, recipientName, otp }) => {
 const sendEmailVerificationOtp = async ({ to, recipientName, otp }) => {
   if (!to || !otp) return { success: false, error: 'Recipient and OTP are required' };
 
-  const subject = 'Verify Your LocalFix Account';
+  const subject = 'LocalFix Email Verification';
   const html = `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify Your LocalFix Account</title>
+  <title>LocalFix Email Verification</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #090d16; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #e2e8f0;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #090d16; padding: 32px 16px;">
@@ -356,22 +341,22 @@ const sendEmailVerificationOtp = async ({ to, recipientName, otp }) => {
           <!-- Content Body -->
           <tr>
             <td style="padding: 32px;">
-              <h2 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 700; color: #f8fafc;">Citizen Account Verification</h2>
+              <h2 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 700; color: #f8fafc;">Email Verification</h2>
               <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #94a3b8;">
                 Hello <strong>${recipientName || 'Citizen'}</strong>,<br>
-                Thank you for joining LocalFix. To activate your account and verify your email, please use the 6-digit verification code below:
+                Thank you for joining LocalFix. Your verification code is:
               </p>
 
               <!-- OTP Code Display Card -->
               <div style="background-color: #020617; border-radius: 14px; border: 1px solid #334155; padding: 24px; text-align: center; margin: 24px 0;">
-                <span style="display: block; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px;">Your Verification OTP</span>
-                <span style="display: block; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 34px; font-weight: 900; letter-spacing: 10px; color: #38bdf8; text-shadow: 0 2px 10px rgba(56, 189, 248, 0.3);">${otp}</span>
-                <span style="display: block; font-size: 12px; color: #10b981; font-weight: 600; margin-top: 10px;">⏰ This OTP expires in 5 minutes</span>
+                <span style="display: block; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px;">Your Verification Code</span>
+                <span style="display: block; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 36px; font-weight: 900; letter-spacing: 10px; color: #38bdf8; text-shadow: 0 2px 10px rgba(56, 189, 248, 0.3);">${otp}</span>
+                <span style="display: block; font-size: 12px; color: #f59e0b; font-weight: 600; margin-top: 10px;">⏰ This code expires in 5 minutes</span>
               </div>
 
               <div style="background-color: #1e293b/60; border-left: 3px solid #14b8a6; padding: 12px 16px; border-radius: 6px; margin-bottom: 24px;">
                 <p style="margin: 0; font-size: 12px; color: #cbd5e1; line-height: 1.5;">
-                  <strong>Important:</strong> Do not share this OTP with anyone. Enter this code on the account verification page to activate your citizen account.
+                  <strong>Important:</strong> Do not share this code with anyone. Enter this code on the account verification page to activate your citizen account.
                 </p>
               </div>
             </td>
@@ -396,7 +381,7 @@ const sendEmailVerificationOtp = async ({ to, recipientName, otp }) => {
   return sendEmail({
     to,
     subject,
-    text: `LocalFix Citizen Account Verification\n\nYour verification OTP is: ${otp}\n\nThis OTP expires in 5 minutes.\nDo not share this OTP with anyone.`,
+    text: `LocalFix\nEmail Verification\n\nYour verification code is:\n${otp}\n\nThis code expires in 5 minutes.\n\nDo not share this code with anyone.`,
     html
   });
 };

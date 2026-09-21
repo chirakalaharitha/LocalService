@@ -4,30 +4,28 @@ const path = require('path');
 const fs = require('fs');
 const { Server } = require('socket.io');
 
-// Load environment variables - prioritize server/.env as authoritative, fallback to ../.env
+// Load environment variables - authoritatively prioritize server/.env
 const serverEnvPath = path.join(__dirname, '.env');
 const rootEnvPath = path.join(__dirname, '../.env');
 
 let loadedEnvPath = null;
-if (fs.existsSync(rootEnvPath)) {
-  dotenv.config({ path: rootEnvPath });
-  loadedEnvPath = rootEnvPath;
-}
 if (fs.existsSync(serverEnvPath)) {
   dotenv.config({ path: serverEnvPath, override: true });
   loadedEnvPath = serverEnvPath;
+} else if (fs.existsSync(rootEnvPath)) {
+  dotenv.config({ path: rootEnvPath });
+  loadedEnvPath = rootEnvPath;
 }
 
-// Print safe diagnostic status without leaking secrets
+// Print safe diagnostic status (NEVER log password, OTP, JWT secret, or tokens)
 console.log('====================================================');
-console.log('   LOCALFIX BACKEND – ENVIRONMENT & SMTP STATUS    ');
+console.log('      LOCALFIX BACKEND – SMTP DIAGNOSTIC STATUS     ');
 console.log('====================================================');
 console.log(`Environment file loaded: ${loadedEnvPath || 'None found'}`);
-console.log(`SMTP_HOST: ${process.env.SMTP_HOST ? 'configured' : 'not configured'}`);
-console.log(`SMTP_PORT: ${process.env.SMTP_PORT ? 'configured' : 'not configured'}`);
-console.log(`SMTP_USER: ${process.env.SMTP_USER ? 'configured' : 'not configured'}`);
-console.log(`SMTP_PASS: ${process.env.SMTP_PASS ? 'configured' : 'not configured'}`);
-console.log(`SMTP_FROM: ${process.env.SMTP_FROM ? 'configured' : 'not configured'}`);
+console.log(`SMTP configured: ${Boolean(process.env.SMTP_USER && process.env.SMTP_USER.trim() && process.env.SMTP_PASS && process.env.SMTP_PASS.trim())}`);
+console.log(`SMTP host: ${process.env.SMTP_HOST || 'smtp.gmail.com'}`);
+console.log(`SMTP port: ${process.env.SMTP_PORT || '587'}`);
+console.log(`SMTP user configured: ${Boolean(process.env.SMTP_USER && process.env.SMTP_USER.trim())}`);
 console.log('====================================================');
 
 const connectDB = require('./config/db');
