@@ -1,0 +1,82 @@
+# Render Blueprint Specification for LocalFix Backend API
+# Documentation: https://render.com/docs/blueprint-spec
+
+services:
+  # ============================================================================
+  # 🚀 LocalFix Backend API Service
+  # ============================================================================
+  - type: web
+    name: localfix-backend
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install --prefix server
+    startCommand: node server/server.js
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # Application Environment
+      - key: NODE_ENV
+        value: production
+
+      # Port (Render dynamically assigns PORT or defaults to 10000)
+      - key: PORT
+        value: 10000
+
+      # Host binding (Render requires 0.0.0.0)
+      - key: HOST
+        value: 0.0.0.0
+
+      # MongoDB Connection String (from MongoDB Atlas M0 cluster)
+      # e.g., mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/localfix?retryWrites=true&w=majority
+      - key: MONGODB_URI
+        sync: false
+
+      # JWT Secret Key - Render automatically generates a secure 256-bit random value
+      - key: JWT_SECRET
+        generateValue: true
+
+      # Allowed Frontend Client URL for CORS (comma-separated if multiple, no trailing slashes)
+      # e.g., https://your-app.vercel.app or https://localfix.onrender.com
+      - key: CLIENT_URL
+        sync: false
+
+      # Server Public URL (Render backend service URL)
+      # e.g., https://localfix-backend.onrender.com
+      - key: SERVER_URL
+        sync: false
+
+      # SMTP Email Service Configuration (Optional: Gmail / SendGrid / Mailgun)
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_SECURE
+        value: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        value: LocalFix Support <noreply@localfix.org>
+
+  # ============================================================================
+  # 🌐 OPTIONAL: LocalFix Frontend (Uncomment below if deploying client on Render)
+  # Otherwise, deploy client to Vercel using the included vercel.json configuration.
+  # ============================================================================
+  # - type: static
+  #   name: localfix-frontend
+  #   runtime: static
+  #   buildCommand: npm install --prefix client && npm run build --prefix client
+  #   staticPublishPath: client/dist
+  #   routes:
+  #     - type: rewrite
+  #       source: /*
+  #       destination: /index.html
+  #   envVars:
+  #     - key: VITE_API_URL
+  #       value: https://localfix-backend.onrender.com/api
+  #     - key: VITE_SOCKET_URL
+  #       value: https://localfix-backend.onrender.com
+  #     - key: VITE_SERVER_URL
+  #       value: https://localfix-backend.onrender.com
