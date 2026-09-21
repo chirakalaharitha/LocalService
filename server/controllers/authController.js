@@ -8,59 +8,111 @@ const { sendPasswordResetOtpEmail, sendEmailVerificationOtp } = require('../serv
 // @desc    Register new citizen user & send 6-digit verification OTP
 // @route   POST /api/auth/register
 // @access  Public (Citizen ONLY)
+// @desc    Register new citizen user & send 6-digit verification OTP
+// @route   POST /api/auth/register
+// @access  Public (Citizen ONLY)
 const registerUser = async (req, res, next) => {
   try {
     const { fullName, name, email, phone, password, confirmPassword, city, state, pincode } = req.body;
+
+    const errors = [];
+
+    // 1. Full Name Validation
     const userName = (fullName || name || '').trim();
+    if (!userName) {
+      errors.push({ field: 'fullName', message: 'Full name is required.' });
+    } else if (userName.length < 2) {
+      errors.push({ field: 'fullName', message: 'Full name must be at least 2 characters long.' });
+    }
 
-    if (!userName || !email || !phone || !password) {
+    // 2. Email Validation
+    const normalizedEmail = (email || '').toLowerCase().trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!normalizedEmail) {
+      errors.push({ field: 'email', message: 'Email address is required.' });
+    } else if (!emailRegex.test(normalizedEmail)) {
+      errors.push({ field: 'email', message: 'Please provide a valid email address.' });
+    }
+
+    // 3. Indian Mobile Phone Validation (normalizes +91 or spaces, requires exactly 10 digits)
+    const rawPhone = (phone || '').toString().trim();
+    const cleanPhone = rawPhone.replace(/[\s\-()]/g, '').replace(/^(\+91|91)(?=\d{10}$)/, '');
+    if (!cleanPhone) {
+      errors.push({ field: 'phone', message: 'Phone number is required.' });
+    } else if (!/^\d{10}$/.test(cleanPhone)) {
+      errors.push({ field: 'phone', message: 'Phone number must be a valid 10-digit mobile number.' });
+    }
+
+    // 4. Password Validation (min 6 chars, consistent with User model)
+    if (!password) {
+      errors.push({ field: 'password', message: 'Password is required.' });
+    } else if (password.length < 6) {
+      errors.push({ field: 'password', message: 'Password must be at least 6 characters long.' });
+    }
+
+    // 5. Password Confirmation Check
+    if (confirmPassword !== undefined && password !== confirmPassword) {
+      errors.push({ field: 'confirmPassword', message: 'Passwords do not match.' });
+    }
+
+    // 6. Indian Pincode Validation (optional, but if provided must be exactly 6 digits)
+    const cleanPincode = (pincode || '').toString().trim();
+    if (cleanPincode && !/^[0-9]{6}$/.test(cleanPincode)) {
+      errors.push({ field: 'pincode', message: 'Pincode must be exactly 6 digits.' });
+    }
+
+    // Return structured validation errors if any validation failed
+    if (errors.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide all required fields (full name, email, phone, password)'
+        message: errors[0].message,
+        errors
       });
     }
 
-    if (confirmPassword && password !== confirmPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password and confirm password do not match'
-      });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password must be at least 6 characters'
-      });
-    }
-
-    const normalizedEmail = email.toLowerCase().trim();
-
-    // Check if user already exists
+    // 7. Check Duplicate Email
     const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
-      // If user is already registered and verified, block re-registration
-      if (existingUser.isVerified !== false && existingUser.emailVerified !== false) {
-        return res.status(400).json({
+      if (existingUser.role !== 'CITIZEN') {
+        return res.status(403).json({
           success: false,
-          message: 'An account with this email address already exists. Please sign in.'
+          message: 'This email is reserved for administrative services. Please sign in.',
+          errors: [{ field: 'email', message: 'This email is reserved for administrative services. Please sign in.' }]
         });
       }
-      if (existingUser.role !== 'CITIZEN') {
-        return res.status(400).json({
+      if (existingUser.isVerified !== false && existingUser.emailVerified !== false) {
+        return res.status(409).json({
           success: false,
-          message: 'This email is reserved for administrative services. Please sign in.'
+          message: 'An account with this email already exists.',
+          errors: [{ field: 'email', message: 'An account with this email already exists.' }]
         });
       }
     }
 
-    // Generate cryptographically secure 6-digit OTP (100000 - 999999)
+    // 8. Check Duplicate Phone
+    const existingPhoneUser = await User.findOne({
+      phone: cleanPhone,
+      $or: [{ emailVerified: true }, { isVerified: true }]
+    });
+    if (existingPhoneUser && existingPhoneUser.email !== normalizedEmail) {
+      return res.status(409).json({
+        success: false,
+        message: 'This phone number is already registered.',
+        errors: [{ field: 'phone', message: 'This phone number is already registered.' }]
+      });
+    }
+
+    // 9. Generate Cryptographically Secure 6-Digit OTP (100000 - 999999)
     const otpNumber = crypto.randomInt(100000, 1000000).toString();
     const hashedOtp = await bcrypt.hash(otpNumber, 10);
-    const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // Strict 5 minutes
+    const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes validity
     const resendCooldown = new Date(Date.now() + 60 * 1000); // 60 seconds cooldown
 
-    // ATTEMPT EMAIL TRANSMISSION FIRST - DO NOT CLAIM SENT IF FAILED
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[AUTH REGISTRATION OTP] Generated OTP for ${normalizedEmail}: ${otpNumber}`);
+    }
+
+    // 10. ATTEMPT EMAIL TRANSMISSION FIRST - DO NOT CLAIM SENT IF FAILED
     const emailResult = await sendEmailVerificationOtp({
       to: normalizedEmail,
       recipientName: userName,
@@ -74,57 +126,44 @@ const registerUser = async (req, res, next) => {
       });
       const isDev = process.env.NODE_ENV !== 'production';
       const userMessage = isDev
-        ? `Verification email could not be sent: ${emailResult?.error || 'SMTP delivery failed'}. Please check SMTP configuration in server/.env.`
-        : 'Unable to send verification email. Please check your email address or try again later.';
+        ? `Unable to send verification email: ${emailResult?.error || 'SMTP delivery failed'}. Please configure SMTP_USER and SMTP_PASS in server/.env.`
+        : 'Unable to send verification email. Please try again.';
 
       return res.status(503).json({
         success: false,
         message: userMessage,
-        code: emailResult?.code || 'EMAIL_DELIVERY_FAILED'
+        code: emailResult?.code || 'EMAIL_DELIVERY_FAILED',
+        errors: [{ field: 'email', message: userMessage }]
       });
     }
 
-    // Only save or update citizen in DB after email is successfully handed off to SMTP
+    // 11. Only save or update citizen in DB after email is successfully handed off to SMTP
+    const citizenData = {
+      name: userName,
+      email: normalizedEmail,
+      phone: cleanPhone,
+      password, // Pre-save hook will hash
+      role: 'CITIZEN', // STRICT CITIZEN ONLY - CLIENT CANNOT OVERRIDE
+      isVerified: false,
+      emailVerified: false,
+      isActive: true,
+      verificationOtp: hashedOtp,
+      emailVerificationOtp: hashedOtp,
+      verificationOtpExpires: otpExpires,
+      emailVerificationOtpExpires: otpExpires,
+      verificationOtpAttempts: 0,
+      emailVerificationOtpAttempts: 0,
+      verificationOtpResendAfter: resendCooldown,
+      city: city ? city.trim() : '',
+      state: state ? state.trim() : '',
+      pincode: cleanPincode
+    };
+
     if (existingUser && (existingUser.isVerified === false || existingUser.emailVerified === false)) {
-      existingUser.name = userName;
-      existingUser.phone = phone.trim();
-      existingUser.password = password; // Pre-save hook will re-hash
-      existingUser.city = city ? city.trim() : '';
-      existingUser.state = state ? state.trim() : '';
-      existingUser.pincode = pincode ? pincode.trim() : '';
-      existingUser.role = 'CITIZEN'; // Strictly Citizen
-      existingUser.isVerified = false;
-      existingUser.emailVerified = false;
-      existingUser.isActive = true;
-      existingUser.verificationOtp = hashedOtp;
-      existingUser.emailVerificationOtp = hashedOtp;
-      existingUser.verificationOtpExpires = otpExpires;
-      existingUser.emailVerificationOtpExpires = otpExpires;
-      existingUser.verificationOtpAttempts = 0;
-      existingUser.emailVerificationOtpAttempts = 0;
-      existingUser.verificationOtpResendAfter = resendCooldown;
+      Object.assign(existingUser, citizenData);
       await existingUser.save();
     } else {
-      await User.create({
-        name: userName,
-        email: normalizedEmail,
-        phone: phone.trim(),
-        password,
-        role: 'CITIZEN', // STRICT CITIZEN ONLY
-        isVerified: false,
-        emailVerified: false,
-        isActive: true,
-        verificationOtp: hashedOtp,
-        emailVerificationOtp: hashedOtp,
-        verificationOtpExpires: otpExpires,
-        emailVerificationOtpExpires: otpExpires,
-        verificationOtpAttempts: 0,
-        emailVerificationOtpAttempts: 0,
-        verificationOtpResendAfter: resendCooldown,
-        city: city ? city.trim() : '',
-        state: state ? state.trim() : '',
-        pincode: pincode ? pincode.trim() : ''
-      });
+      await User.create(citizenData);
     }
 
     res.status(201).json({

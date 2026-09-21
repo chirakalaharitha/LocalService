@@ -16,17 +16,17 @@ import {
 
 const Register = () => {
   const [formData, setFormData] = useState({
-    name: '',
+    fullName: '',
     email: '',
     phone: '',
     password: '',
     confirmPassword: '',
     city: '',
     state: '',
-    pincode: '',
-    role: 'CITIZEN'
+    pincode: ''
   });
 
+  const [fieldErrors, setFieldErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
@@ -36,8 +36,12 @@ const Register = () => {
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
     setError('');
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: '' }));
+    }
   };
 
   // Password criteria
@@ -50,14 +54,57 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setFieldErrors({});
 
-    if (!hasMinLength) {
-      setError('Password must be at least 6 characters long.');
-      return;
+    const errors = {};
+
+    // 1. Full Name Validation
+    const trimmedName = formData.fullName.trim();
+    if (!trimmedName) {
+      errors.fullName = 'Full name is required.';
+    } else if (trimmedName.length < 2) {
+      errors.fullName = 'Full name must be at least 2 characters.';
     }
 
+    // 2. Email Validation
+    const trimmedEmail = formData.email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail) {
+      errors.email = 'Email address is required.';
+    } else if (!emailRegex.test(trimmedEmail)) {
+      errors.email = 'Please enter a valid email address.';
+    }
+
+    // 3. Phone Validation (allow 10 digits, normalize +91/spaces)
+    const rawPhone = formData.phone.trim();
+    const cleanPhone = rawPhone.replace(/[\s\-()]/g, '').replace(/^(\+91|91)(?=\d{10}$)/, '');
+    if (!cleanPhone) {
+      errors.phone = 'Phone number is required.';
+    } else if (!/^\d{10}$/.test(cleanPhone)) {
+      errors.phone = 'Please enter a valid 10-digit mobile number.';
+    }
+
+    // 4. Pincode Validation (optional, but if provided must be exactly 6 digits)
+    const cleanPincode = formData.pincode.trim();
+    if (cleanPincode && !/^[0-9]{6}$/.test(cleanPincode)) {
+      errors.pincode = 'Pincode must be exactly 6 digits.';
+    }
+
+    // 5. Password Validation
+    if (!formData.password) {
+      errors.password = 'Password is required.';
+    } else if (formData.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters long.';
+    }
+
+    // 6. Confirm Password Validation
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match. Please verify.');
+      errors.confirmPassword = 'Passwords do not match.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setError(Object.values(errors)[0]);
       return;
     }
 
@@ -65,15 +112,14 @@ const Register = () => {
 
     try {
       const payload = {
-        name: formData.name.trim(),
-        email: formData.email.trim().toLowerCase(),
-        phone: formData.phone.trim(),
-        password: formData.password,
-        confirmPassword: formData.confirmPassword,
+        fullName: trimmedName,
+        email: trimmedEmail,
+        phone: cleanPhone,
         city: formData.city.trim(),
         state: formData.state.trim(),
-        pincode: formData.pincode.trim(),
-        role: 'CITIZEN'
+        pincode: cleanPincode,
+        password: formData.password,
+        confirmPassword: formData.confirmPassword
       };
 
       const data = await register(payload);
@@ -83,7 +129,36 @@ const Register = () => {
         state: { email: payload.email }
       });
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed. Please check your inputs.');
+      console.error('REGISTER ERROR:', err.response?.data);
+
+      const status = err.response?.status;
+      const responseData = err.response?.data;
+      const responseMessage = responseData?.message;
+
+      // Extract field-level errors if provided by backend
+      if (Array.isArray(responseData?.errors) && responseData.errors.length > 0) {
+        const serverFieldErrors = {};
+        responseData.errors.forEach((errItem) => {
+          if (errItem.field) {
+            serverFieldErrors[errItem.field] = errItem.message;
+          }
+        });
+        setFieldErrors(serverFieldErrors);
+      }
+
+      if (responseMessage) {
+        setError(responseMessage);
+      } else if (!err.response) {
+        setError('Cannot connect to LocalFix server. Please check your network connection.');
+      } else if (status === 409) {
+        setError('An account with this email or phone number already exists.');
+      } else if (status === 503) {
+        setError('Unable to send verification email. Please try again.');
+      } else if (status >= 500) {
+        setError('Something went wrong on the server. Please try again.');
+      } else {
+        setError('Please check the highlighted fields.');
+      }
     } finally {
       setLoading(false);
     }
@@ -99,7 +174,7 @@ const Register = () => {
         
         {/* Header & LF Badge */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-13 h-13 w-12 h-12 bg-gradient-to-tr from-blue-600 to-teal-500 rounded-2xl shadow-lg shadow-blue-500/25 mb-3">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-tr from-blue-600 to-teal-500 rounded-2xl shadow-lg shadow-blue-500/25 mb-3">
             <span className="text-xl font-black text-white tracking-wider">LF</span>
           </div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs font-semibold mb-2">
@@ -123,7 +198,7 @@ const Register = () => {
         )}
 
         {/* Unified Registration Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           
           {/* Full Name */}
           <div>
@@ -134,14 +209,17 @@ const Register = () => {
               <HiOutlineUser className="absolute left-3.5 top-3.5 text-slate-400 text-lg" />
               <input
                 type="text"
-                name="name"
+                name="fullName"
                 required
-                value={formData.name}
+                value={formData.fullName}
                 onChange={handleChange}
-                placeholder="e.g. John Doe"
-                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                placeholder="e.g. Haritha Chirakala"
+                className={`w-full bg-slate-950/70 border ${fieldErrors.fullName ? 'border-rose-500 ring-1 ring-rose-500/30' : 'border-slate-800'} rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all`}
               />
             </div>
+            {fieldErrors.fullName && (
+              <p className="mt-1 text-xs text-rose-400">{fieldErrors.fullName}</p>
+            )}
           </div>
 
           {/* Email & Phone Grid */}
@@ -159,9 +237,12 @@ const Register = () => {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="name@domain.com"
-                  className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className={`w-full bg-slate-950/70 border ${fieldErrors.email ? 'border-rose-500 ring-1 ring-rose-500/30' : 'border-slate-800'} rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all`}
                 />
               </div>
+              {fieldErrors.email && (
+                <p className="mt-1 text-xs text-rose-400">{fieldErrors.email}</p>
+              )}
             </div>
 
             <div>
@@ -177,9 +258,12 @@ const Register = () => {
                   value={formData.phone}
                   onChange={handleChange}
                   placeholder="9876543210"
-                  className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className={`w-full bg-slate-950/70 border ${fieldErrors.phone ? 'border-rose-500 ring-1 ring-rose-500/30' : 'border-slate-800'} rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all`}
                 />
               </div>
+              {fieldErrors.phone && (
+                <p className="mt-1 text-xs text-rose-400">{fieldErrors.phone}</p>
+              )}
             </div>
           </div>
 
@@ -195,10 +279,13 @@ const Register = () => {
                   name="city"
                   value={formData.city}
                   onChange={handleChange}
-                  placeholder="Mumbai"
-                  className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2.5 px-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  placeholder="Guntur"
+                  className={`w-full bg-slate-950/70 border ${fieldErrors.city ? 'border-rose-500' : 'border-slate-800'} rounded-xl py-2.5 px-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all`}
                 />
               </div>
+              {fieldErrors.city && (
+                <p className="mt-1 text-xs text-rose-400">{fieldErrors.city}</p>
+              )}
             </div>
 
             <div>
@@ -210,9 +297,12 @@ const Register = () => {
                 name="state"
                 value={formData.state}
                 onChange={handleChange}
-                placeholder="Maharashtra"
-                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2.5 px-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                placeholder="Andhra Pradesh"
+                className={`w-full bg-slate-950/70 border ${fieldErrors.state ? 'border-rose-500' : 'border-slate-800'} rounded-xl py-2.5 px-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all`}
               />
+              {fieldErrors.state && (
+                <p className="mt-1 text-xs text-rose-400">{fieldErrors.state}</p>
+              )}
             </div>
 
             <div>
@@ -224,9 +314,12 @@ const Register = () => {
                 name="pincode"
                 value={formData.pincode}
                 onChange={handleChange}
-                placeholder="400001"
-                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2.5 px-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                placeholder="522001"
+                className={`w-full bg-slate-950/70 border ${fieldErrors.pincode ? 'border-rose-500 ring-1 ring-rose-500/30' : 'border-slate-800'} rounded-xl py-2.5 px-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all`}
               />
+              {fieldErrors.pincode && (
+                <p className="mt-1 text-xs text-rose-400">{fieldErrors.pincode}</p>
+              )}
             </div>
           </div>
 
@@ -245,7 +338,7 @@ const Register = () => {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2.5 pl-10 pr-11 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className={`w-full bg-slate-950/70 border ${fieldErrors.password ? 'border-rose-500 ring-1 ring-rose-500/30' : 'border-slate-800'} rounded-xl py-2.5 pl-10 pr-11 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all`}
                 />
                 <button
                   type="button"
@@ -261,6 +354,9 @@ const Register = () => {
                   )}
                 </button>
               </div>
+              {fieldErrors.password && (
+                <p className="mt-1 text-xs text-rose-400">{fieldErrors.password}</p>
+              )}
             </div>
 
             <div>
@@ -276,7 +372,7 @@ const Register = () => {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2.5 pl-10 pr-11 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className={`w-full bg-slate-950/70 border ${fieldErrors.confirmPassword ? 'border-rose-500 ring-1 ring-rose-500/30' : 'border-slate-800'} rounded-xl py-2.5 pl-10 pr-11 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all`}
                 />
                 <button
                   type="button"
@@ -292,6 +388,9 @@ const Register = () => {
                   )}
                 </button>
               </div>
+              {fieldErrors.confirmPassword && (
+                <p className="mt-1 text-xs text-rose-400">{fieldErrors.confirmPassword}</p>
+              )}
             </div>
           </div>
 
