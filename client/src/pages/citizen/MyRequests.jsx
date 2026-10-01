@@ -1,22 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import API from '../../services/api';
-import RequestCard from '../../components/requests/RequestCard';
 import {
   HiOutlinePlusCircle,
   HiOutlineSearch,
-  HiOutlineFilter,
+  HiOutlineEye,
   HiOutlineRefresh,
-  HiOutlineClipboardList,
-  HiOutlineSortAscending
+  HiOutlineClipboardList
 } from 'react-icons/hi';
 
 const CATEGORY_OPTIONS = ['ALL', 'WATER', 'ELECTRICITY', 'ROAD', 'STREET_LIGHT', 'GARBAGE', 'DRAINAGE', 'PUBLIC_AREA', 'OTHER'];
 const PRIORITY_OPTIONS = ['ALL', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-const STATUS_OPTIONS = ['ALL', 'PENDING', 'UNDER_REVIEW', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'CITIZEN_VERIFIED', 'REJECTED'];
+const STATUS_OPTIONS = ['ALL', 'PENDING', 'UNDER_REVIEW', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'PENDING_VERIFICATION', 'CITIZEN_VERIFIED', 'CLOSED', 'REJECTED'];
 
 const MyRequests = () => {
   const [requests, setRequests] = useState([]);
+  const [municipalities, setMunicipalities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -25,15 +24,21 @@ const MyRequests = () => {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedPriority, setSelectedPriority] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
-  const [sortBy, setSortBy] = useState('NEWEST');
+  const [selectedMuni, setSelectedMuni] = useState('ALL');
 
   const fetchMyRequests = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await API.get('/requests/my');
-      if (res.data.success) {
-        setRequests(res.data.requests || []);
+      const [reqRes, muniRes] = await Promise.all([
+        API.get('/requests/my'),
+        API.get('/municipalities')
+      ]);
+      if (reqRes.data.success) {
+        setRequests(reqRes.data.requests || []);
+      }
+      if (muniRes.data.success) {
+        setMunicipalities(muniRes.data.municipalities || []);
       }
     } catch (err) {
       console.error('Fetch My Requests Error:', err);
@@ -51,201 +56,210 @@ const MyRequests = () => {
   const filteredRequests = useMemo(() => {
     let result = [...requests];
 
-    // Search filter
     if (search.trim()) {
       const query = search.toLowerCase();
       result = result.filter(
         (r) =>
           r.title?.toLowerCase().includes(query) ||
           r.requestId?.toLowerCase().includes(query) ||
-          r.address?.toLowerCase().includes(query)
+          r.address?.toLowerCase().includes(query) ||
+          (r.municipalitySnapshot?.name || r.municipality?.name || '').toLowerCase().includes(query)
       );
     }
 
-    // Category filter
     if (selectedCategory !== 'ALL') {
       result = result.filter((r) => (r.category || '').toUpperCase() === selectedCategory);
     }
 
-    // Priority filter
     if (selectedPriority !== 'ALL') {
       result = result.filter((r) => (r.priority || '').toUpperCase() === selectedPriority);
     }
 
-    // Status filter
     if (selectedStatus !== 'ALL') {
       result = result.filter((r) => (r.status || '').toUpperCase() === selectedStatus);
     }
 
-    // Sorting
-    result.sort((a, b) => {
-      if (sortBy === 'NEWEST') {
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      }
-      if (sortBy === 'OLDEST') {
-        return new Date(a.createdAt) - new Date(b.createdAt);
-      }
-      if (sortBy === 'RECENTLY_UPDATED') {
-        return new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt);
-      }
-      return 0;
-    });
+    if (selectedMuni !== 'ALL') {
+      result = result.filter((r) => {
+        const mId = r.municipality?._id || r.municipality;
+        return mId === selectedMuni;
+      });
+    }
 
-    return result;
-  }, [requests, search, selectedCategory, selectedPriority, selectedStatus, sortBy]);
+    return result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [requests, search, selectedCategory, selectedPriority, selectedStatus, selectedMuni]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header & Quick Action */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
+    <div className="space-y-6">
+      {/* Top Header & + New Request Button matching Reference Screenshot */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">My Service Requests</h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Track real-time progress, status updates, and field resolution history for all your reported civic issues.
+          <h1 className="text-2xl sm:text-3xl font-black text-[#29252A] tracking-tight">
+            My Requests
+          </h1>
+          <p className="text-xs sm:text-sm text-[#6B666E] mt-0.5">
+            Monitor real-time status and resolutions of your submitted civic issues.
           </p>
         </div>
 
         <Link
           to="/requests/create"
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-blue-600/25 transition shrink-0"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-[#C65F63] hover:bg-[#B35256] text-white font-bold text-xs shadow-lg shadow-[#C65F63]/25 transition self-start sm:self-auto"
         >
-          <HiOutlinePlusCircle className="text-lg" />
-          <span>Report New Problem</span>
+          <span>+ New Request</span>
         </Link>
       </div>
 
-      {/* Search, Filter & Sort Controls Bar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          {/* Search Input */}
-          <div className="lg:col-span-2 relative">
-            <HiOutlineSearch className="absolute left-3.5 top-3 text-slate-400 text-base" />
+      {/* Filter Row */}
+      <div className="bg-white rounded-3xl border border-[#EFE7E0] p-4 shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+          {/* Search */}
+          <div className="relative md:col-span-2">
+            <HiOutlineSearch className="absolute left-3.5 top-3 text-[#9E98A2] text-sm" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by title or Request ID (e.g. LF-2026)..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 pl-10 pr-4 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+              placeholder="Search title, ID, location..."
+              className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 pl-10 pr-4 text-xs text-[#29252A] placeholder-[#9E98A2] focus:outline-none focus:border-[#C65F63]"
             />
           </div>
 
-          {/* Category Filter */}
-          <div>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
-            >
-              <option value="ALL">All Categories</option>
-              {CATEGORY_OPTIONS.filter((c) => c !== 'ALL').map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat.replace(/_/g, ' ')}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Status Dropdown */}
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
+          >
+            <option value="ALL">All Status</option>
+            {STATUS_OPTIONS.filter((s) => s !== 'ALL').map((s) => (
+              <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
 
-          {/* Status Filter */}
-          <div>
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
-            >
-              <option value="ALL">All Statuses</option>
-              {STATUS_OPTIONS.filter((s) => s !== 'ALL').map((st) => (
-                <option key={st} value={st}>
-                  {st.replace(/_/g, ' ')}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Category Dropdown */}
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
+          >
+            <option value="ALL">All Categories</option>
+            {CATEGORY_OPTIONS.filter((c) => c !== 'ALL').map((c) => (
+              <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
 
-          {/* Sort By */}
-          <div>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
-            >
-              <option value="NEWEST">Newest First</option>
-              <option value="OLDEST">Oldest First</option>
-              <option value="RECENTLY_UPDATED">Recently Updated</option>
-            </select>
-          </div>
+          {/* Municipalities Dropdown */}
+          <select
+            value={selectedMuni}
+            onChange={(e) => setSelectedMuni(e.target.value)}
+            className="bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
+          >
+            <option value="ALL">All Municipalities</option>
+            {municipalities.map((m) => (
+              <option key={m._id} value={m._id}>{m.name} ({m.city})</option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* Main Request Grid / States */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((n) => (
-            <div key={n} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 animate-pulse">
-              <div className="h-4 bg-slate-800 rounded w-1/3" />
-              <div className="h-6 bg-slate-800 rounded w-3/4" />
-              <div className="h-10 bg-slate-800/60 rounded w-full" />
-              <div className="h-4 bg-slate-800 rounded w-1/2" />
-            </div>
-          ))}
-        </div>
-      ) : error ? (
-        <div className="py-12 text-center text-xs text-rose-400 bg-rose-500/10 rounded-2xl border border-rose-500/20 space-y-4 max-w-md mx-auto">
-          <p>{error}</p>
-          <button
-            onClick={fetchMyRequests}
-            className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold inline-flex items-center gap-2"
-          >
-            <HiOutlineRefresh />
-            <span>Retry</span>
-          </button>
-        </div>
-      ) : filteredRequests.length === 0 ? (
-        <div className="py-16 text-center space-y-4 bg-slate-900 border border-slate-800 rounded-2xl p-8">
-          <div className="w-16 h-16 rounded-2xl bg-slate-950 text-slate-500 flex items-center justify-center text-3xl mx-auto border border-slate-800">
-            <HiOutlineClipboardList />
+      {/* Main Table View matching Reference Screenshot */}
+      <div className="bg-white rounded-3xl border border-[#EFE7E0] shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="py-16 text-center text-xs text-[#6B666E]">
+            Loading your service requests...
           </div>
-
-          <div className="space-y-1">
-            <h3 className="text-lg font-bold text-white">No service requests found</h3>
-            <p className="text-xs text-slate-400 max-w-md mx-auto">
-              {requests.length === 0
-                ? "You haven't submitted any local service requests yet. Report an issue to start tracking."
-                : 'No requests matched your current search/filter criteria. Try clearing filters.'}
-            </p>
+        ) : filteredRequests.length === 0 ? (
+          <div className="py-16 text-center space-y-3">
+            <HiOutlineClipboardList className="w-12 h-12 text-[#9E98A2] mx-auto" />
+            <h4 className="text-sm font-bold text-[#29252A]">No Matching Requests</h4>
+            <p className="text-xs text-[#6B666E]">Try adjusting your search keywords or filter options.</p>
           </div>
-
-          {requests.length === 0 ? (
-            <Link
-              to="/requests/create"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/20 transition"
-            >
-              <HiOutlinePlusCircle className="text-base" />
-              <span>Create Service Request</span>
-            </Link>
-          ) : (
-            <button
-              onClick={() => {
-                setSearch('');
-                setSelectedCategory('ALL');
-                setSelectedPriority('ALL');
-                setSelectedStatus('ALL');
-              }}
-              className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold text-xs border border-slate-700"
-            >
-              Clear All Filters
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredRequests.map((req) => (
-            <RequestCard key={req._id} request={req} />
-          ))}
-        </div>
-      )}
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-left text-xs">
+              <thead className="bg-[#FAF5F0] text-[#6B666E] uppercase font-bold text-[10px] border-b border-[#EFE7E0]">
+                <tr>
+                  <th className="p-4">ID</th>
+                  <th className="p-4">Title</th>
+                  <th className="p-4">Category</th>
+                  <th className="p-4">Municipality</th>
+                  <th className="p-4">Location</th>
+                  <th className="p-4">Priority</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">Date</th>
+                  <th className="p-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#EFE7E0] font-medium text-[#29252A]">
+                {filteredRequests.map((r) => (
+                  <tr key={r._id} className="hover:bg-[#FAF5F0]/60 transition">
+                    <td className="p-4 font-mono font-bold text-[#C65F63]">
+                      <Link to={`/requests/${r.requestId || r._id}`} className="hover:underline">
+                        #{r.requestId}
+                      </Link>
+                    </td>
+                    <td className="p-4 font-bold max-w-[200px] truncate">
+                      {r.title}
+                    </td>
+                    <td className="p-4">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FAF5F0] text-[#6B4E71] border border-[#EFE7E0]">
+                        {r.category}
+                      </span>
+                    </td>
+                    <td className="p-4 text-[#6B4E71] font-semibold">
+                      🏛️ {r.municipalitySnapshot?.name || r.municipality?.name || 'Local Authority'}
+                    </td>
+                    <td className="p-4 text-[#6B666E] max-w-[160px] truncate">
+                      {r.city || r.district ? `${r.city || ''}, ${r.district || ''}` : r.address}
+                    </td>
+                    <td className="p-4">
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          r.priority === 'CRITICAL'
+                            ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                            : r.priority === 'HIGH'
+                            ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                            : 'bg-blue-50 text-blue-600 border border-blue-200'
+                        }`}
+                      >
+                        {r.priority}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          r.status === 'CITIZEN_VERIFIED' || r.status === 'CLOSED'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : r.status === 'RESOLVED' || r.status === 'PENDING_VERIFICATION'
+                            ? 'bg-[#FDECEF] text-[#C65F63] border border-[#C65F63]/20'
+                            : 'bg-[#FAF5F0] text-[#29252A] border border-[#EFE7E0]'
+                        }`}
+                      >
+                        {r.status?.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="p-4 text-[11px] text-[#6B666E]">
+                      {new Date(r.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
+                    <td className="p-4 text-right">
+                      <Link
+                        to={`/requests/${r.requestId || r._id}`}
+                        className="p-2 rounded-xl bg-[#FAF5F0] hover:bg-[#FDECEF] text-[#C65F63] border border-[#EFE7E0] transition inline-flex items-center justify-center"
+                        title="View Details"
+                      >
+                        <HiOutlineEye className="text-sm" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
 export default MyRequests;
-

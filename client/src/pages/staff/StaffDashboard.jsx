@@ -1,803 +1,793 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import API from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
-import { toast } from 'react-toastify';
 import {
-  HiOutlineCheckCircle,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  LabelList
+} from 'recharts';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import {
+  StaffCategoryBadge,
+  StaffPriorityBadge,
+  StaffStatusBadge
+} from './staffUiHelpers';
+import {
+  HiOutlineDocumentText,
   HiOutlineClock,
+  HiOutlineCheckCircle,
   HiOutlineExclamationCircle,
   HiOutlineSearch,
-  HiOutlineFilter,
-  HiOutlinePlay,
-  HiOutlineUser,
-  HiOutlineLocationMarker,
+  HiOutlineCalendar,
+  HiOutlineChevronLeft,
+  HiOutlineChevronRight,
   HiOutlineRefresh,
-  HiStar,
-  HiOutlineStar
+  HiOutlineClipboardList,
+  HiOutlineViewGrid,
+  HiOutlinePlus,
+  HiOutlineMinus
 } from 'react-icons/hi';
 
-const categories = [
-  { value: 'ALL', label: 'All Categories' },
-  { value: 'WATER', label: 'Water Supply & Leakages' },
-  { value: 'ELECTRICITY', label: 'Electricity & Power' },
-  { value: 'ROAD', label: 'Road Damage & Potholes' },
-  { value: 'STREET_LIGHT', label: 'Street Lighting' },
-  { value: 'GARBAGE', label: 'Garbage & Sanitation' },
-  { value: 'DRAINAGE', label: 'Drainage & Sewage' },
-  { value: 'PUBLIC_AREA', label: 'Public Areas' },
-  { value: 'OTHER', label: 'Other Civic Issues' }
-];
+// Helper to create colored teardrop map pin matching screenshot
+const createStatusPin = (status) => {
+  const s = (status || '').toUpperCase();
+  let pinColor = '#38BDF8'; // In Progress blue
+  if (s === 'PENDING' || s === 'ASSIGNED' || s === 'UNDER_REVIEW') {
+    pinColor = '#FBBF24'; // Pending yellow
+  } else if (s === 'IN_PROGRESS' || s === 'ACCEPTED') {
+    pinColor = '#38BDF8'; // In Progress blue
+  } else if (s === 'OVERDUE') {
+    pinColor = '#EF4444'; // Overdue red
+  } else if (s === 'COMPLETED' || s === 'RESOLVED' || s === 'CITIZEN_VERIFIED' || s === 'CLOSED') {
+    pinColor = '#10B981'; // Completed green
+  }
+
+  const svg = `<svg width="22" height="30" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 0C5.37258 0 0 5.37258 0 12C0 21 12 32 12 32C12 32 24 21 24 12C24 5.37258 18.6274 0 12 0Z" fill="${pinColor}"/>
+    <circle cx="12" cy="12" r="5" fill="white"/>
+  </svg>`;
+
+  return L.divIcon({
+    className: 'custom-status-pin',
+    html: `<div style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transform: translate(-50%, -100%); cursor: pointer;">${svg}</div>`,
+    iconSize: [22, 30],
+    iconAnchor: [11, 30],
+    popupAnchor: [0, -30]
+  });
+};
+
+// Map controller to adjust view bounds
+const MapBoundsController = ({ requests = [], defaultCenter = [16.3067, 80.4365] }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    const validCoords = requests
+      .filter((r) => (
+        r.location?.coordinates &&
+        Array.isArray(r.location.coordinates) &&
+        r.location.coordinates.length === 2 &&
+        typeof r.location.coordinates[0] === 'number' &&
+        typeof r.location.coordinates[1] === 'number' &&
+        !isNaN(r.location.coordinates[0]) &&
+        !isNaN(r.location.coordinates[1])
+      ))
+      .map((r) => [r.location.coordinates[1], r.location.coordinates[0]]);
+
+    if (validCoords.length > 1) {
+      const bounds = L.latLngBounds(validCoords);
+      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+    } else if (validCoords.length === 1) {
+      map.setView(validCoords[0], 13, { animate: true });
+    } else if (defaultCenter) {
+      map.setView(defaultCenter, 12, { animate: true });
+    }
+  }, [requests, defaultCenter, map]);
+
+  return null;
+};
+
+// Map zoom control helper
+const MapZoomController = () => {
+  const map = useMap();
+  return (
+    <div className="absolute bottom-3 right-3 z-[400] flex flex-col bg-white border border-[#EFE7E0] rounded-lg shadow-md overflow-hidden">
+      <button
+        type="button"
+        onClick={() => map.zoomIn()}
+        className="p-1.5 hover:bg-[#FAF6F2] text-[#29252A] border-b border-[#EFE7E0] transition"
+        title="Zoom in"
+      >
+        <HiOutlinePlus className="text-xs" />
+      </button>
+      <button
+        type="button"
+        onClick={() => map.zoomOut()}
+        className="p-1.5 hover:bg-[#FAF6F2] text-[#29252A] transition"
+        title="Zoom out"
+      >
+        <HiOutlineMinus className="text-xs" />
+      </button>
+    </div>
+  );
+};
 
 const StaffDashboard = () => {
   const { user } = useAuth();
   const { socket } = useSocket();
+  const navigate = useNavigate();
 
+  // Real KPI stats from MongoDB
   const [stats, setStats] = useState({
     totalAssigned: 0,
-    pendingAcceptance: 0,
     inProgress: 0,
-    resolved: 0,
-    highPriority: 0
+    completed: 0,
+    overdue: 0,
+    pending: 0
   });
+
+  // Real assigned requests & dynamic category distribution (ONLY assigned categories with count > 0)
   const [requests, setRequests] = useState([]);
-  const [feedbacks, setFeedbacks] = useState([]);
-  const [feedbacksLoading, setFeedbacksLoading] = useState(false);
+  const [categoryDistribution, setCategoryDistribution] = useState([]);
+  const [statusDistribution, setStatusDistribution] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  // Filters & Search
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('ALL');
-  const [selectedPriority, setSelectedPriority] = useState('ALL');
+  // Filters
   const [selectedCategory, setSelectedCategory] = useState('ALL');
-  const [sortBy, setSortBy] = useState('recently_updated');
+  const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [dateRange, setDateRange] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Quick Action Modals
-  const [startModalReq, setStartModalReq] = useState(null);
-  const [beforeFile, setBeforeFile] = useState(null);
-  const [starting, setStarting] = useState(false);
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
-  const [resolveModalReq, setResolveModalReq] = useState(null);
-  const [afterFile, setAfterFile] = useState(null);
-  const [resolutionNotes, setResolutionNotes] = useState('');
-  const [resolving, setResolving] = useState(false);
-
-  const fetchStaffRequests = async () => {
-    setLoading(true);
-    setError('');
+  // Fetch real staff data from MongoDB
+  const fetchDashboardData = useCallback(async () => {
     try {
+      setLoading(true);
       const res = await API.get('/staff/requests', {
         params: {
-          status: selectedStatus,
-          priority: selectedPriority,
           category: selectedCategory,
-          search: searchQuery,
-          sortBy
+          status: selectedStatus,
+          search: searchQuery
         }
       });
-      if (res.data.success) {
-        setStats(res.data.stats || {
-          totalAssigned: 0,
-          pendingAcceptance: 0,
-          inProgress: 0,
-          resolved: 0,
-          highPriority: 0
-        });
+
+      if (res.data?.success) {
         setRequests(res.data.requests || []);
+        if (res.data.stats) {
+          setStats({
+            totalAssigned: res.data.stats.totalAssigned || 0,
+            inProgress: res.data.stats.inProgress || 0,
+            completed: res.data.stats.completed || res.data.stats.resolved || 0,
+            overdue: res.data.stats.overdue || res.data.stats.overdueCount || 0,
+            pending: res.data.stats.pending || res.data.stats.pendingCount || 0
+          });
+        }
+        setCategoryDistribution(res.data.categoryDistribution || []);
+        setStatusDistribution(res.data.statusDistribution || []);
       }
     } catch (err) {
-      console.error('Fetch assigned requests failed:', err);
-      setError(err.response?.data?.message || 'Unable to load assigned requests. Please try again.');
+      console.error('Staff dashboard fetch error:', err);
+      setRequests([]);
+      setCategoryDistribution([]);
+      setStatusDistribution([]);
+      setStats({
+        totalAssigned: 0,
+        inProgress: 0,
+        completed: 0,
+        overdue: 0,
+        pending: 0
+      });
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchFeedbacks = async () => {
-    try {
-      setFeedbacksLoading(true);
-      const res = await API.get('/feedback/staff/my');
-      if (res.data.success) {
-        setFeedbacks(res.data.feedbacks || []);
-      }
-    } catch (err) {
-      console.error('Error fetching staff feedback:', err);
-    } finally {
-      setFeedbacksLoading(false);
-    }
-  };
+  }, [selectedCategory, selectedStatus, searchQuery]);
 
   useEffect(() => {
-    fetchStaffRequests();
-    fetchFeedbacks();
-  }, [selectedStatus, selectedPriority, selectedCategory, sortBy]);
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
-  // Real-time socket event listeners for staff dashboard
+  // Real-time update via Socket.IO (No polling, instant re-fetch on assignment or status change)
   useEffect(() => {
     if (!socket) return;
 
-    const handleFeedback = (data) => {
-      if (data?.feedback) {
-        setFeedbacks((prev) => [data.feedback, ...prev]);
-        toast.info(`Citizen submitted a ${data.feedback.rating}-star review for [${data.requestId || 'Request'}]!`);
-      }
-    };
-    socket.on('feedback:submitted', handleFeedback);
-    return () => socket.off('feedback:submitted', handleFeedback);
-  }, [socket]);
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleStatusChanged = (payload) => {
-      // Check if this request affects this staff member's view
-      setRequests((prev) => {
-        let isPresent = false;
-        const updated = prev.map((item) => {
-          const match =
-            item.requestId === payload.requestId ||
-            item._id?.toString() === payload.requestMongoId?.toString();
-          if (!match) return item;
-          isPresent = true;
-          return {
-            ...item,
-            status: payload.status,
-            resolutionNotes: payload.request?.resolutionNotes !== undefined
-              ? payload.request.resolutionNotes
-              : (payload.note || item.resolutionNotes),
-            afterImage: payload.request?.afterImage || item.afterImage,
-            resolutionProof: payload.resolutionProof || payload.request?.resolutionProof || item.resolutionProof,
-            updatedAt: payload.changedAt || new Date().toISOString()
-          };
-        });
-
-        if (isPresent) {
-          // Update counters dynamically
-          setStats((prevStats) => {
-            let { totalAssigned, pendingAcceptance, inProgress, resolved, highPriority } = prevStats;
-            const prevSt = payload.previousStatus;
-            const newSt = payload.status;
-
-            if (prevSt === 'ASSIGNED') pendingAcceptance = Math.max(0, pendingAcceptance - 1);
-            if (prevSt === 'IN_PROGRESS' || prevSt === 'ACCEPTED') inProgress = Math.max(0, inProgress - 1);
-            if (prevSt === 'RESOLVED' || prevSt === 'CITIZEN_VERIFIED' || prevSt === 'RESOLUTION_SUBMITTED') resolved = Math.max(0, resolved - 1);
-
-            if (newSt === 'ASSIGNED') pendingAcceptance += 1;
-            if (newSt === 'IN_PROGRESS' || newSt === 'ACCEPTED') inProgress += 1;
-            if (newSt === 'RESOLVED' || newSt === 'CITIZEN_VERIFIED' || newSt === 'RESOLUTION_SUBMITTED') resolved += 1;
-            if (newSt === 'PENDING') totalAssigned = Math.max(0, totalAssigned - 1);
-
-            return { totalAssigned, pendingAcceptance, inProgress, resolved, highPriority };
-          });
-
-          // Filter out if selectedStatus is active and doesn't match
-          if (selectedStatus && selectedStatus !== 'ALL') {
-            return updated.filter((r) => r.status === selectedStatus);
-          }
-          return updated;
-        }
-
-        return prev;
-      });
+    const handleRealtimeUpdate = (data) => {
+      // Re-fetch immediately when request is assigned to or updated by admin/system
+      fetchDashboardData();
     };
 
-    const handleUpdated = (payload) => {
-      setRequests((prev) =>
-        prev.map((item) => {
-          const match =
-            item.requestId === payload.requestId ||
-            item._id?.toString() === payload.requestMongoId?.toString();
-          if (!match) return item;
-          return {
-            ...item,
-            ...(payload.changes || {}),
-            ...(payload.request || {}),
-            updatedAt: payload.updatedAt || new Date().toISOString()
-          };
-        })
-      );
-    };
-
-    const handleAssigned = (payload) => {
-      // Check if assigned to current staff
-      const staffId = user?._id?.toString();
-      const assignedToId = payload.assignedTo?._id?.toString() || payload.staffId?.toString();
-
-      if (staffId && assignedToId === staffId) {
-        if (payload.request) {
-          setRequests((prev) => {
-            const exists = prev.some(
-              (r) => r.requestId === payload.requestId || r._id === payload.request._id
-            );
-            if (!exists) {
-              return [payload.request, ...prev];
-            }
-            return prev;
-          });
-        }
-        setStats((prev) => ({
-          ...prev,
-          totalAssigned: prev.totalAssigned + 1,
-          pendingAcceptance: prev.pendingAcceptance + 1,
-          highPriority:
-            payload.request?.priority === 'HIGH' || payload.request?.priority === 'CRITICAL'
-              ? prev.highPriority + 1
-              : prev.highPriority
-        }));
-      }
-    };
-
-    socket.on('request:statusChanged', handleStatusChanged);
-    socket.on('request:updated', handleUpdated);
-    socket.on('request:assigned', handleAssigned);
+    socket.on('request:assigned', handleRealtimeUpdate);
+    socket.on('request:statusChanged', handleRealtimeUpdate);
+    socket.on('notification:new', handleRealtimeUpdate);
+    socket.on('newNotification', handleRealtimeUpdate);
 
     return () => {
-      socket.off('request:statusChanged', handleStatusChanged);
-      socket.off('request:updated', handleUpdated);
-      socket.off('request:assigned', handleAssigned);
+      socket.off('request:assigned', handleRealtimeUpdate);
+      socket.off('request:statusChanged', handleRealtimeUpdate);
+      socket.off('notification:new', handleRealtimeUpdate);
+      socket.off('newNotification', handleRealtimeUpdate);
     };
-  }, [socket, user, selectedStatus]);
+  }, [socket, fetchDashboardData]);
 
-  // Debounced search trigger
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    fetchStaffRequests();
-  };
+  // Donut chart status data
+  const donutData = useMemo(() => {
+    if (stats.totalAssigned === 0) return [];
+    return [
+      { name: 'Pending', value: stats.pending, color: '#38BDF8' },
+      { name: 'In Progress', value: stats.inProgress, color: '#FB923C' },
+      { name: 'Completed', value: stats.completed, color: '#4ADE80' },
+      { name: 'Overdue', value: stats.overdue, color: '#F87171' }
+    ].filter((item) => item.value > 0);
+  }, [stats]);
 
-  const handleAccept = async (reqId) => {
-    try {
-      const res = await API.post(`/staff/requests/${reqId}/accept`);
-      if (res.data.success) {
-        toast.success('Task accepted and moved to in-progress.');
-        fetchStaffRequests();
+  // Filter requests by Date Range if selected
+  const filteredRequests = useMemo(() => {
+    if (dateRange === 'ALL') return requests;
+    const now = new Date();
+    return requests.filter((r) => {
+      if (!r.createdAt) return true;
+      const created = new Date(r.createdAt);
+      if (dateRange === 'TODAY') {
+        return created.toDateString() === now.toDateString();
       }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Accept failed');
-    }
-  };
-
-  const handleReject = async (reqId) => {
-    const reason = prompt('Please enter rejection reason:');
-    if (!reason || !reason.trim()) return;
-    try {
-      const res = await API.post(`/staff/requests/${reqId}/reject`, { reason: reason.trim() });
-      if (res.data.success) {
-        toast.info('Assignment rejected.');
-        fetchStaffRequests();
+      if (dateRange === '7DAYS') {
+        return (now.getTime() - created.getTime()) <= 7 * 24 * 60 * 60 * 1000;
       }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Reject failed');
-    }
-  };
-
-  const handleStartWorkSubmit = async (e) => {
-    e.preventDefault();
-    if (!startModalReq) return;
-    setStarting(true);
-    try {
-      const formData = new FormData();
-      if (beforeFile) formData.append('beforeImage', beforeFile);
-
-      const res = await API.post(`/staff/requests/${startModalReq._id}/start`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-
-      if (res.data.success) {
-        toast.success('Work commenced! Initial inspection recorded.');
-        setStartModalReq(null);
-        setBeforeFile(null);
-        fetchStaffRequests();
+      if (dateRange === '30DAYS') {
+        return (now.getTime() - created.getTime()) <= 30 * 24 * 60 * 60 * 1000;
       }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Start work failed');
-    } finally {
-      setStarting(false);
-    }
-  };
+      return true;
+    });
+  }, [requests, dateRange]);
 
-  const handleResolveSubmit = async (e) => {
-    e.preventDefault();
-    if (!resolveModalReq) return;
-    if (!resolutionNotes.trim() || resolutionNotes.trim().length < 5) {
-      toast.error('Please enter meaningful resolution notes (minimum 5 characters).');
-      return;
-    }
-    setResolving(true);
-    try {
-      const formData = new FormData();
-      if (afterFile) formData.append('afterImage', afterFile);
-      formData.append('resolutionNotes', resolutionNotes.trim());
+  // Paginated table requests
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage) || 1;
+  const paginatedRequests = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredRequests.slice(start, start + itemsPerPage);
+  }, [filteredRequests, currentPage, itemsPerPage]);
 
-      const res = await API.patch(`/staff/requests/${resolveModalReq._id}/resolve`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-
-      if (res.data.success) {
-        toast.success('Resolution submitted successfully! Awaiting citizen verification.');
-        setResolveModalReq(null);
-        setAfterFile(null);
-        setResolutionNotes('');
-        fetchStaffRequests();
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Resolution failed');
-    } finally {
-      setResolving(false);
+  // Determine map center from assigned requests or default
+  const mapCenter = useMemo(() => {
+    const withCoords = requests.find(
+      (r) =>
+        r.location?.coordinates &&
+        Array.isArray(r.location.coordinates) &&
+        r.location.coordinates.length === 2 &&
+        typeof r.location.coordinates[0] === 'number' &&
+        typeof r.location.coordinates[1] === 'number'
+    );
+    if (withCoords) {
+      return [withCoords.location.coordinates[1], withCoords.location.coordinates[0]];
     }
-  };
+    return [16.3067, 80.4365]; // Guntur / Tenali central coordinate
+  }, [requests]);
+
+  const primaryCity = useMemo(() => {
+    const firstWithCity = requests.find((r) => r.city || r.municipality?.name);
+    return firstWithCity?.city || firstWithCity?.municipality?.name?.split(' ')[0] || 'Guntur';
+  }, [requests]);
 
   return (
-    <div className="space-y-8">
-      {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-teal-950/40 border border-slate-800 p-6 sm:p-8 rounded-2xl shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/30 text-teal-400 text-xs font-semibold">
-            <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
-            <span>Field Operations Portal</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            Welcome back, {user?.name || 'Staff Officer'}
+    <div className="space-y-6 pb-12 animate-fadeIn font-sans">
+      {/* 1. Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#29252A] tracking-tight">
+            Staff Dashboard
           </h1>
-          <p className="text-xs text-slate-400 leading-relaxed max-w-xl">
-            Here are the civic service requests currently assigned to you. Inspect locations, start repairs, and submit proof of completed work.
+          <p className="text-xs sm:text-sm text-[#7D7682] font-medium mt-0.5">
+            Manage your assigned requests and keep your municipality clean and safe.
           </p>
         </div>
-
         <button
-          onClick={fetchStaffRequests}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 transition shadow-sm"
+          onClick={fetchDashboardData}
+          disabled={loading}
+          className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#EFE7E0] bg-white text-[#6B4E71] hover:bg-[#FAF6F2] text-xs font-semibold shadow-2xs transition"
+          title="Refresh dashboard data"
         >
-          <HiOutlineRefresh className={loading ? 'animate-spin' : ''} />
-          <span>Refresh Workload</span>
+          <HiOutlineRefresh className={`text-sm ${loading ? 'animate-spin' : ''}`} />
+          <span>Refresh</span>
         </button>
       </div>
 
-      {/* Real Statistics KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1 shadow-sm">
-          <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
-            Total Assigned
-          </span>
-          <div className="text-2xl font-black text-white">{stats.totalAssigned}</div>
-          <div className="text-[10px] text-slate-500">Your total backlog</div>
+      {/* 2. Top 4 KPI Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Assigned */}
+        <div className="bg-white border border-[#EFE7E0] rounded-2xl p-5 flex items-center gap-4 shadow-xs hover:border-[#C65F63]/30 transition">
+          <div className="w-12 h-12 rounded-2xl bg-[#F3E8FF] text-[#7E22CE] flex items-center justify-center text-xl shrink-0">
+            <HiOutlineDocumentText />
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-[#8C8490]">Total Assigned</div>
+            <div className="text-2xl font-black text-[#29252A] leading-tight mt-0.5">
+              {stats.totalAssigned}
+            </div>
+            <div className="text-[11px] text-[#8C8490] mt-0.5">Requests assigned to you</div>
+          </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1 shadow-sm">
-          <span className="text-[11px] text-amber-400 font-semibold uppercase tracking-wider">
-            Pending Accept
-          </span>
-          <div className="text-2xl font-black text-amber-400">{stats.pendingAcceptance}</div>
-          <div className="text-[10px] text-slate-500">Awaiting acknowledgement</div>
+        {/* Card 2: In Progress */}
+        <div className="bg-white border border-[#EFE7E0] rounded-2xl p-5 flex items-center gap-4 shadow-xs hover:border-[#C65F63]/30 transition">
+          <div className="w-12 h-12 rounded-2xl bg-[#FEF3E2] text-[#D97706] flex items-center justify-center text-xl shrink-0">
+            <HiOutlineClock />
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-[#8C8490]">In Progress</div>
+            <div className="text-2xl font-black text-[#29252A] leading-tight mt-0.5">
+              {stats.inProgress}
+            </div>
+            <div className="text-[11px] text-[#8C8490] mt-0.5">Currently being worked on</div>
+          </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1 shadow-sm">
-          <span className="text-[11px] text-teal-400 font-semibold uppercase tracking-wider">
-            In Progress
-          </span>
-          <div className="text-2xl font-black text-teal-400">{stats.inProgress}</div>
-          <div className="text-[10px] text-slate-500">Repairs active on site</div>
+        {/* Card 3: Completed */}
+        <div className="bg-white border border-[#EFE7E0] rounded-2xl p-5 flex items-center gap-4 shadow-xs hover:border-[#C65F63]/30 transition">
+          <div className="w-12 h-12 rounded-2xl bg-[#E6F7ED] text-[#15803D] flex items-center justify-center text-xl shrink-0">
+            <HiOutlineCheckCircle />
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-[#8C8490]">Completed</div>
+            <div className="text-2xl font-black text-[#29252A] leading-tight mt-0.5">
+              {stats.completed}
+            </div>
+            <div className="text-[11px] text-[#8C8490] mt-0.5">Successfully resolved</div>
+          </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1 shadow-sm">
-          <span className="text-[11px] text-emerald-400 font-semibold uppercase tracking-wider">
-            Resolved
-          </span>
-          <div className="text-2xl font-black text-emerald-400">{stats.resolved}</div>
-          <div className="text-[10px] text-slate-500">Repaired & completed</div>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1 shadow-sm">
-          <span className="text-[11px] text-rose-400 font-semibold uppercase tracking-wider">
-            High Priority
-          </span>
-          <div className="text-2xl font-black text-rose-400">{stats.highPriority}</div>
-          <div className="text-[10px] text-slate-500">High / Critical urgency</div>
+        {/* Card 4: Overdue */}
+        <div className="bg-white border border-[#EFE7E0] rounded-2xl p-5 flex items-center gap-4 shadow-xs hover:border-[#C65F63]/30 transition">
+          <div className="w-12 h-12 rounded-2xl bg-[#FDECEF] text-[#C65F63] flex items-center justify-center text-xl shrink-0">
+            <HiOutlineExclamationCircle />
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-[#8C8490]">Overdue</div>
+            <div className="text-2xl font-black text-[#29252A] leading-tight mt-0.5">
+              {stats.overdue}
+            </div>
+            <div className="text-[11px] text-[#8C8490] mt-0.5">Past SLA deadline</div>
+          </div>
         </div>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-sm">
-        <div className="flex flex-col md:flex-row items-center gap-3">
-          {/* Search Input */}
-          <form onSubmit={handleSearchSubmit} className="relative flex-1 w-full">
-            <HiOutlineSearch className="absolute left-3.5 top-3 text-slate-400 text-sm" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by Request ID, title, or address..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 pl-9 pr-4 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-500 transition"
-            />
-          </form>
+      {/* 3. Middle 3 Cards Grid (Status Overview | Requests by Category | Assigned Requests Map) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        
+        {/* Card 1: Request Status Overview (Donut Chart) */}
+        <div className="bg-white border border-[#EFE7E0] rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+          <h2 className="text-sm font-bold text-[#29252A] mb-3">
+            Request Status Overview
+          </h2>
 
-          {/* Status Filter */}
-          <div className="w-full sm:w-auto flex items-center gap-2">
+          {stats.totalAssigned === 0 ? (
+            <div className="py-12 text-center space-y-2 my-auto">
+              <div className="w-12 h-12 rounded-full bg-[#FAF6F2] text-[#8C8490] flex items-center justify-center mx-auto text-xl border border-[#EFE7E0]">
+                <HiOutlineClipboardList />
+              </div>
+              <div className="text-xs font-bold text-[#29252A]">No requests assigned yet</div>
+              <p className="text-[11px] text-[#8C8490]">Status overview will appear once requests are assigned.</p>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3 my-auto">
+              {/* Donut Chart */}
+              <div className="relative w-36 h-36 shrink-0 flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={donutData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={46}
+                      outerRadius={64}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {donutData.map((entry, index) => (
+                        <Cell key={`status-cell-${index}`} fill={entry.color} stroke="none" />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(val, name) => [`${val} requests`, name]}
+                      contentStyle={{ borderRadius: '12px', fontSize: '11px', border: '1px solid #EFE7E0' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-2xl font-black text-[#29252A] leading-none">{stats.totalAssigned}</span>
+                  <span className="text-[10px] font-semibold text-[#8C8490] mt-0.5">Total</span>
+                </div>
+              </div>
+
+              {/* Legend on Right matching Image 2 */}
+              <div className="flex-1 space-y-2 text-xs pl-2">
+                <div className="flex items-center justify-between text-[#6B666E]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#38BDF8] shrink-0" />
+                    <span className="font-medium text-[#29252A]">Pending</span>
+                  </div>
+                  <span className="font-bold text-[#29252A]">{stats.pending}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-[#6B666E]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#FB923C] shrink-0" />
+                    <span className="font-medium text-[#29252A]">In Progress</span>
+                  </div>
+                  <span className="font-bold text-[#29252A]">{stats.inProgress}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-[#6B666E]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#4ADE80] shrink-0" />
+                    <span className="font-medium text-[#29252A]">Completed</span>
+                  </div>
+                  <span className="font-bold text-[#29252A]">{stats.completed}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-[#6B666E]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#F87171] shrink-0" />
+                    <span className="font-medium text-[#29252A]">Overdue</span>
+                  </div>
+                  <span className="font-bold text-[#29252A]">{stats.overdue}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Card 2: Requests by Category (ONLY Assigned Categories with count > 0) */}
+        <div className="bg-white border border-[#EFE7E0] rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+          <h2 className="text-sm font-bold text-[#29252A] mb-3">
+            Requests by Category
+          </h2>
+
+          {categoryDistribution.length === 0 ? (
+            <div className="py-12 text-center space-y-2 my-auto">
+              <div className="w-12 h-12 rounded-full bg-[#FAF6F2] text-[#8C8490] flex items-center justify-center mx-auto text-xl border border-[#EFE7E0]">
+                <HiOutlineViewGrid />
+              </div>
+              <div className="text-xs font-bold text-[#29252A]">No requests assigned yet</div>
+              <p className="text-[11px] text-[#8C8490]">Only categories assigned to you will be displayed here.</p>
+            </div>
+          ) : (
+            <div className="h-44 w-full my-auto">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={categoryDistribution}
+                  margin={{ top: 22, right: 15, left: -25, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F2ECE6" />
+                  <XAxis
+                    dataKey="name"
+                    tickLine={false}
+                    axisLine={{ stroke: '#EFE7E0' }}
+                    tick={{ fontSize: 11, fill: '#6B666E', fontWeight: 500 }}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: '#8C8490' }}
+                    domain={[0, (dataMax) => Math.max(4, Math.ceil(dataMax * 1.25))]}
+                  />
+                  <Tooltip
+                    formatter={(val) => [`${val} requests`, 'Assigned']}
+                    contentStyle={{ borderRadius: '12px', fontSize: '11px', border: '1px solid #EFE7E0' }}
+                  />
+                  <Bar
+                    dataKey="count"
+                    radius={[6, 6, 0, 0]}
+                    barSize={40}
+                  >
+                    <LabelList
+                      dataKey="count"
+                      position="top"
+                      fill="#29252A"
+                      fontSize={11}
+                      fontWeight={700}
+                    />
+                    {categoryDistribution.map((entry, index) => (
+                      <Cell
+                        key={`bar-cell-${index}`}
+                        fill={entry.color || (index === 0 ? '#38BDF8' : '#FB923C')}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        {/* Card 3: Assigned Requests Map (Leaflet Map with Status Colored Pins) */}
+        <div className="bg-white border border-[#EFE7E0] rounded-2xl p-5 shadow-xs flex flex-col justify-between md:col-span-2 lg:col-span-1">
+          <h2 className="text-sm font-bold text-[#29252A] mb-3">
+            Assigned Requests Map
+          </h2>
+
+          <div className="relative h-44 w-full rounded-xl overflow-hidden border border-[#EFE7E0] bg-[#FAF8F6]">
+            <MapContainer
+              center={mapCenter}
+              zoom={12}
+              zoomControl={false}
+              scrollWheelZoom={false}
+              style={{ height: '100%', width: '100%' }}
+            >
+              <TileLayer
+                attribution='&copy; OpenStreetMap'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+
+              <MapBoundsController requests={requests} defaultCenter={mapCenter} />
+              <MapZoomController />
+
+              {/* Render status-colored pins for assigned requests */}
+              {requests.map((r) => {
+                if (
+                  !r.location?.coordinates ||
+                  !Array.isArray(r.location.coordinates) ||
+                  r.location.coordinates.length !== 2
+                ) {
+                  return null;
+                }
+                const [lng, lat] = r.location.coordinates;
+                if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
+                  return null;
+                }
+
+                return (
+                  <Marker
+                    key={r._id || r.requestId}
+                    position={[lat, lng]}
+                    icon={createStatusPin(r.status)}
+                  >
+                    <Popup>
+                      <div className="p-1 min-w-[170px] text-xs">
+                        <div className="font-bold text-[#29252A]">{r.requestId}</div>
+                        <div className="text-[11px] text-[#6B666E] font-medium line-clamp-1">{r.title}</div>
+                        <div className="text-[10px] text-[#8C8490] mt-1">
+                          Status: <span className="font-bold">{r.status}</span>
+                        </div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
+            </MapContainer>
+
+            {/* City watermark badge */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none text-base font-extrabold text-[#29252A]/85 z-[400] drop-shadow-sm select-none">
+              {primaryCity}
+            </div>
+
+            {/* Map Legend Overlay matching Image 2 */}
+            <div className="absolute top-2 right-2 z-[400] bg-white/95 backdrop-blur-xs p-2 rounded-xl border border-[#EFE7E0] shadow-sm text-[10px] space-y-1 select-none pointer-events-none">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#38BDF8]" />
+                <span className="font-semibold text-[#29252A]">In Progress</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#FBBF24]" />
+                <span className="font-semibold text-[#29252A]">Pending</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#EF4444]" />
+                <span className="font-semibold text-[#29252A]">Overdue</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#10B981]" />
+                <span className="font-semibold text-[#29252A]">Completed</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* 4. Bottom Card: Assigned Requests Table */}
+      <div className="bg-white border border-[#EFE7E0] rounded-2xl shadow-xs overflow-hidden">
+        {/* Card Header & Filter Bar */}
+        <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[#EFE7E0]">
+          <h2 className="text-base font-bold text-[#29252A]">
+            Assigned Requests
+          </h2>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Category Filter: Shows ONLY categories assigned to this staff member */}
+            <select
+              value={selectedCategory}
+              onChange={(e) => {
+                setSelectedCategory(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="py-1.5 px-3 rounded-xl border border-[#EFE7E0] bg-[#FAF6F2] text-xs font-semibold text-[#29252A] hover:border-[#C65F63] focus:outline-none cursor-pointer"
+            >
+              <option value="ALL">All Categories</option>
+              {categoryDistribution.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.name} ({c.count})
+                </option>
+              ))}
+            </select>
+
+            {/* Status Filter */}
             <select
               value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full sm:w-auto bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+              onChange={(e) => {
+                setSelectedStatus(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="py-1.5 px-3 rounded-xl border border-[#EFE7E0] bg-[#FAF6F2] text-xs font-semibold text-[#29252A] hover:border-[#C65F63] focus:outline-none cursor-pointer"
             >
               <option value="ALL">All Statuses</option>
+              <option value="PENDING">Pending</option>
               <option value="ASSIGNED">Assigned</option>
-              <option value="ACCEPTED">Accepted</option>
               <option value="IN_PROGRESS">In Progress</option>
-              <option value="RESOLVED">Resolved</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="OVERDUE">Overdue</option>
             </select>
 
-            {/* Priority Filter */}
+            {/* Date Range Filter */}
             <select
-              value={selectedPriority}
-              onChange={(e) => setSelectedPriority(e.target.value)}
-              className="w-full sm:w-auto bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+              value={dateRange}
+              onChange={(e) => {
+                setDateRange(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="py-1.5 px-3 rounded-xl border border-[#EFE7E0] bg-[#FAF6F2] text-xs font-semibold text-[#29252A] hover:border-[#C65F63] focus:outline-none cursor-pointer"
             >
-              <option value="ALL">All Priorities</option>
-              <option value="CRITICAL">Critical</option>
-              <option value="HIGH">High</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="LOW">Low</option>
+              <option value="ALL">Select Date Range</option>
+              <option value="TODAY">Today</option>
+              <option value="7DAYS">Last 7 Days</option>
+              <option value="30DAYS">Last 30 Days</option>
             </select>
 
-            {/* Sorting */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="w-full sm:w-auto bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
-            >
-              <option value="recently_updated">Recently Updated</option>
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="priority">Highest Priority</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <HiOutlineExclamationCircle className="text-base shrink-0" />
-            <span>{error}</span>
-          </div>
-          <button
-            onClick={fetchStaffRequests}
-            className="px-3 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 font-semibold"
-          >
-            Retry
-          </button>
-        </div>
-      )}
-
-      {/* Assigned Requests List */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white tracking-tight">
-            Assigned Service Requests ({requests.length})
-          </h2>
-          <span className="text-xs text-slate-400">
-            Sorted by: {sortBy.replace(/_/g, ' ')}
-          </span>
-        </div>
-
-        {loading ? (
-          /* Skeleton Loader */
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 animate-pulse">
-                <div className="flex items-center justify-between">
-                  <div className="w-28 h-4 bg-slate-800 rounded" />
-                  <div className="w-20 h-5 bg-slate-800 rounded-full" />
-                </div>
-                <div className="w-3/4 h-5 bg-slate-800 rounded" />
-                <div className="w-1/2 h-3 bg-slate-800 rounded" />
-              </div>
-            ))}
-          </div>
-        ) : requests.length === 0 ? (
-          /* Empty State */
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center space-y-3 shadow-inner">
-            <div className="w-12 h-12 bg-slate-800 text-slate-400 rounded-full flex items-center justify-center text-xl mx-auto">
-              ✓
+            {/* Search Input */}
+            <div className="relative">
+              <HiOutlineSearch className="absolute left-3 top-2.5 text-[#9E98A2] text-sm" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search by ID, location..."
+                className="py-1.5 pl-8 pr-3 rounded-xl border border-[#EFE7E0] bg-[#FAF6F2] text-xs text-[#29252A] placeholder-[#9E98A2] hover:border-[#C65F63] focus:outline-none focus:bg-white w-48 sm:w-56 transition"
+              />
             </div>
-            <h3 className="text-base font-bold text-white">No requests assigned to you yet</h3>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              New assignments made to your account will appear here automatically.
-            </p>
           </div>
-        ) : (
-          /* Requests Cards */
-          <div className="grid grid-cols-1 gap-4">
-            {requests.map((r) => (
-              <div
-                key={r._id}
-                className="bg-slate-900 hover:bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-lg transition-all"
-              >
-                {/* Header Row */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono font-bold text-blue-400 text-xs">
-                        {r.requestId}
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                          r.priority === 'CRITICAL'
-                            ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                            : r.priority === 'HIGH'
-                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                            : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                        }`}
-                      >
-                        {r.priority} Priority
-                      </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-300 border border-slate-700">
-                        {r.category}
-                      </span>
-                    </div>
-                    <h3 className="font-bold text-slate-100 text-base mt-1.5">
-                      {r.title}
-                    </h3>
-                  </div>
+        </div>
 
-                  <div className="self-start sm:self-auto flex items-center gap-2">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${
-                        r.status === 'RESOLVED' || r.status === 'CITIZEN_VERIFIED'
-                          ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-                          : r.status === 'IN_PROGRESS'
-                          ? 'bg-teal-500/10 text-teal-300 border-teal-500/30'
-                          : r.status === 'ACCEPTED'
-                          ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
-                          : 'bg-blue-500/10 text-blue-300 border-blue-500/30'
-                      }`}
-                    >
-                      {r.status.replace(/_/g, ' ')}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Details Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-slate-300">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
-                      <HiOutlineUser className="text-blue-400" />
-                      <span>Reporting Citizen:</span>
-                      <span className="text-slate-200 font-semibold">{r.citizen?.name || 'Citizen'}</span>
+        {/* Requests Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-[#EFE7E0] text-[11px] font-bold text-[#8C8490] tracking-wider bg-white">
+                <th className="py-3.5 px-4">Request ID</th>
+                <th className="py-3.5 px-4">Issue</th>
+                <th className="py-3.5 px-4">Category</th>
+                <th className="py-3.5 px-4">Location</th>
+                <th className="py-3.5 px-4">Municipality</th>
+                <th className="py-3.5 px-4">Priority</th>
+                <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-4">Assigned Date</th>
+                <th className="py-3.5 px-4 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#F2ECE6]">
+              {loading ? (
+                <tr>
+                  <td colSpan="9" className="py-12 text-center text-xs text-[#8C8490]">
+                    <div className="w-6 h-6 border-2 border-[#C65F63] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                    Loading assigned requests...
+                  </td>
+                </tr>
+              ) : paginatedRequests.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="py-14 text-center">
+                    <div className="w-12 h-12 rounded-full bg-[#FAF6F2] text-[#8C8490] flex items-center justify-center mx-auto text-xl border border-[#EFE7E0] mb-2">
+                      <HiOutlineClipboardList />
                     </div>
-                    <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
-                      <HiOutlineLocationMarker className="text-teal-400" />
-                      <span className="text-slate-300 font-mono line-clamp-1">{r.address}</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="text-[11px] text-slate-500 font-semibold uppercase">Description:</div>
-                    <p className="text-slate-300 text-xs line-clamp-2 leading-relaxed">
-                      {r.description}
+                    <div className="text-sm font-bold text-[#29252A]">No requests assigned yet</div>
+                    <p className="text-xs text-[#8C8490] mt-0.5">
+                      {selectedCategory !== 'ALL' || selectedStatus !== 'ALL' || searchQuery
+                        ? 'No requests match your current filters.'
+                        : 'You currently have no assigned service requests.'}
                     </p>
-                  </div>
-                </div>
-
-                {/* Footer Action Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800">
-                  <Link
-                    to={`/staff/requests/${r._id}`}
-                    className="text-xs text-teal-400 hover:text-teal-300 font-bold transition flex items-center gap-1"
+                  </td>
+                </tr>
+              ) : (
+                paginatedRequests.map((req) => (
+                  <tr
+                    key={req._id || req.requestId}
+                    className="hover:bg-[#FAF6F2] transition duration-150 text-[#29252A]"
                   >
-                    <span>Inspect Details & Map</span>
-                    <span>→</span>
-                  </Link>
-
-                  <div className="flex items-center gap-2">
-                    {r.status === 'ASSIGNED' && (
-                      <>
-                        <button
-                          onClick={() => handleAccept(r._id)}
-                          className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20"
-                        >
-                          Accept
-                        </button>
-                        <button
-                          onClick={() => handleReject(r._id)}
-                          className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 font-semibold text-xs border border-rose-500/20"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
-
-                    {r.status === 'ACCEPTED' && (
-                      <button
-                        onClick={() => setStartModalReq(r)}
-                        className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md shadow-amber-600/20 flex items-center gap-1"
+                    <td className="py-3.5 px-4 font-semibold text-[#402A40] whitespace-nowrap">
+                      {req.requestId}
+                    </td>
+                    <td className="py-3.5 px-4 font-semibold text-[#29252A] max-w-[200px] truncate">
+                      {req.title}
+                    </td>
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <StaffCategoryBadge category={req.category} />
+                    </td>
+                    <td className="py-3.5 px-4 text-[#6B666E] whitespace-nowrap max-w-[150px] truncate">
+                      {req.address || req.city || '—'}
+                    </td>
+                    <td className="py-3.5 px-4 text-[#6B666E] whitespace-nowrap">
+                      {req.municipality?.name || req.municipalityName || req.city || '—'}
+                    </td>
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <StaffPriorityBadge priority={req.priority} />
+                    </td>
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <StaffStatusBadge status={req.status} />
+                    </td>
+                    <td className="py-3.5 px-4 whitespace-nowrap text-[#6B666E] text-[11px]">
+                      {req.assignedDate || '-'}
+                    </td>
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                      <Link
+                        to={`/staff/requests/${req.requestId || req._id}`}
+                        className="inline-block px-3 py-1 rounded-md text-[11px] font-bold text-[#C65F63] border border-[#EAAFB3] hover:bg-[#FDECEF] hover:border-[#C65F63] transition cursor-pointer shadow-2xs"
                       >
-                        <HiOutlinePlay />
-                        <span>Start Work</span>
-                      </button>
-                    )}
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-                    {r.status === 'IN_PROGRESS' && (
-                      <button
-                        onClick={() => setResolveModalReq(r)}
-                        className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold text-xs shadow-md shadow-teal-600/20 flex items-center gap-1"
-                      >
-                        <HiOutlineCheckCircle />
-                        <span>Mark Resolved</span>
-                      </button>
-                    )}
+        {/* Table Footer: Showing X of Y requests & Pagination */}
+        {!loading && filteredRequests.length > 0 && (
+          <div className="p-4 bg-white border-t border-[#EFE7E0] flex items-center justify-between text-xs text-[#8C8490]">
+            <div>
+              Showing {Math.min(filteredRequests.length, (currentPage - 1) * itemsPerPage + 1)} to{' '}
+              {Math.min(filteredRequests.length, currentPage * itemsPerPage)} of {filteredRequests.length} requests
+            </div>
 
-                    {(r.status === 'RESOLVED' || r.status === 'CITIZEN_VERIFIED') && (
-                      <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
-                        <HiOutlineCheckCircle />
-                        <span>Resolved</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
+            <div className="flex items-center gap-1.5">
+              <button
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="p-1.5 rounded-lg border border-[#EFE7E0] text-[#29252A] hover:bg-[#FAF6F2] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
+                title="Previous page"
+              >
+                <HiOutlineChevronLeft className="text-sm" />
+              </button>
+              <span className="px-2.5 py-1 rounded-lg bg-[#C65F63] text-white font-bold text-xs">
+                {currentPage}
+              </span>
+              <button
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="p-1.5 rounded-lg border border-[#EFE7E0] text-[#29252A] hover:bg-[#FAF6F2] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
+                title="Next page"
+              >
+                <HiOutlineChevronRight className="text-sm" />
+              </button>
+            </div>
           </div>
         )}
       </div>
-
-      {/* Recent Citizen Feedback Section */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2">
-            <HiStar className="text-amber-400 text-lg" />
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-              Recent Citizen Feedback ({feedbacks.length})
-            </h2>
-          </div>
-          <span className="text-[11px] text-slate-400">Reviews for your completed repairs</span>
-        </div>
-
-        {feedbacksLoading ? (
-          <div className="py-8 text-center text-xs text-slate-500">Loading citizen reviews...</div>
-        ) : feedbacks.length === 0 ? (
-          <div className="py-10 text-center text-xs text-slate-400 font-medium">
-            No citizen feedback available yet. Once citizens verify your completed repairs, their ratings will appear here.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {feedbacks.map((f) => (
-              <div key={f._id} className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-bold text-blue-400">
-                    {f.request?.requestId || 'LF-REQ'}
-                  </span>
-                  <div className="flex items-center gap-1 text-amber-400 text-xs">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <HiStar key={s} className={s <= f.rating ? 'text-amber-400' : 'text-slate-700'} />
-                    ))}
-                    <span className="ml-1 text-slate-300 font-bold">{f.rating}/5</span>
-                  </div>
-                </div>
-
-                {f.comment && (
-                  <p className="text-xs text-slate-300 italic">
-                    "{f.comment}"
-                  </p>
-                )}
-
-                {f.suggestion && (
-                  <div className="text-[11px] text-teal-300 bg-teal-950/40 border border-teal-900/60 p-2 rounded-lg">
-                    <span className="font-semibold text-teal-400">Suggestion:</span> {f.suggestion}
-                  </div>
-                )}
-
-                <div className="text-[10px] text-slate-500 pt-1">
-                  Verified on: {new Date(f.createdAt).toLocaleDateString()}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Start Work Modal */}
-      {startModalReq && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <form
-            onSubmit={handleStartWorkSubmit}
-            className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-2xl"
-          >
-            <h3 className="text-base font-bold text-white">Start Work on {startModalReq.requestId}?</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              This will transition the issue status to IN PROGRESS. You may optionally attach an arrival photo.
-            </p>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Before-Work Site Photo (Optional):
-              </label>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={(e) => setBeforeFile(e.target.files[0])}
-                className="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200"
-              />
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setStartModalReq(null)}
-                className="flex-1 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={starting}
-                className="flex-1 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold"
-              >
-                {starting ? 'Starting...' : 'Confirm Start'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Resolve Modal */}
-      {resolveModalReq && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <form
-            onSubmit={handleResolveSubmit}
-            className="max-w-lg w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-2xl"
-          >
-            <h3 className="text-base font-bold text-white">Submit Resolution for {resolveModalReq.requestId}</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Describe the completed work and upload after-work repair photos for citizen verification.
-            </p>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Resolution Notes (Required) * :
-              </label>
-              <textarea
-                rows={3}
-                required
-                value={resolutionNotes}
-                onChange={(e) => setResolutionNotes(e.target.value)}
-                placeholder="Describe actions taken, repaired parts, and tested results..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-teal-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                After-Work Proof Image (Recommended) :
-              </label>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={(e) => setAfterFile(e.target.files[0])}
-                className="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200"
-              />
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setResolveModalReq(null)}
-                className="flex-1 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={resolving || !resolutionNotes.trim()}
-                className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold"
-              >
-                {resolving ? 'Submitting...' : 'Submit Resolution'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
     </div>
   );
 };

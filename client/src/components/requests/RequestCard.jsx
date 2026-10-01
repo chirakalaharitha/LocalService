@@ -16,15 +16,15 @@ const RequestCard = ({ request }) => {
     : 'N/A';
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 hover:border-slate-700 transition shadow-lg group flex flex-col justify-between">
+    <div className="bg-white border border-[#EFE7E0] rounded-2xl p-5 space-y-4 hover:border-[#C65F63]/30 transition shadow-sm group flex flex-col justify-between">
       <div className="space-y-3">
         {/* Card Header: Request ID, Status & Priority */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#EFE7E0] pb-3">
           <div className="flex items-center gap-2">
-            <span className="font-mono font-bold text-blue-400 text-xs tracking-wider">
+            <span className="font-mono font-bold text-[#C65F63] text-xs tracking-wider">
               {request.requestId}
             </span>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 uppercase">
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#FAF5F0] text-[#6B4E71] uppercase border border-[#EFE7E0]">
               {request.category}
             </span>
           </div>
@@ -36,31 +36,39 @@ const RequestCard = ({ request }) => {
 
         {/* Title & Description */}
         <div>
-          <h3 className="text-base font-bold text-white group-hover:text-blue-400 transition line-clamp-1">
+          <h3 className="text-base font-bold text-[#29252A] group-hover:text-[#C65F63] transition line-clamp-1">
             {request.title}
           </h3>
-          <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+          <p className="text-xs text-[#6B4E71] mt-1 line-clamp-2 leading-relaxed">
             {request.description}
           </p>
         </div>
 
-        {/* Location Summary */}
-        <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono line-clamp-1">
-          <HiOutlineLocationMarker className="text-blue-400 shrink-0 text-sm" />
-          <span>{request.address || 'Address provided'}</span>
+        {/* Location & Authority Summary */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-xs text-[#6B4E71] line-clamp-1">
+            <HiOutlineLocationMarker className="text-[#C65F63] shrink-0 text-sm" />
+            <span>{request.address || 'Address provided'}</span>
+          </div>
+          {(request.municipalitySnapshot?.name || request.municipality?.name) && (
+            <div className="flex items-center gap-1.5 text-[11px] text-[#6B4E71] font-semibold line-clamp-1">
+              <span>🏛️</span>
+              <span>{request.municipalitySnapshot?.name || request.municipality?.name}</span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Footer: Date & View Details Link */}
-      <div className="flex items-center justify-between pt-3 border-t border-slate-800/80 text-xs">
-        <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
+      <div className="flex items-center justify-between pt-3 border-t border-[#EFE7E0] text-xs">
+        <div className="flex items-center gap-1.5 text-[#6B4E71]/70 text-[11px]">
           <HiOutlineCalendar className="text-sm" />
           <span>Submitted {formattedDate}</span>
         </div>
 
         <Link
           to={`/requests/${request._id || request.requestId}`}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 font-bold text-xs border border-blue-500/30 transition"
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#FDECEF] hover:bg-[#FDECEF]/80 text-[#C65F63] font-bold text-xs border border-[#C65F63]/20 transition"
         >
           <span>View Details</span>
           <HiOutlineChevronRight className="text-sm" />

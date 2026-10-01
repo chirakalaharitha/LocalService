@@ -47,10 +47,22 @@ const createNotification = async ({
     const actorId = actor?._id ? actor._id : actor;
 
     // Check user preferences
-    const inAppEnabled = user.notificationPreferences?.inAppNotifications !== false &&
-      user.notificationPreferences?.push !== false;
-    const emailEnabled = user.notificationPreferences?.emailAlerts !== false &&
-      user.notificationPreferences?.email !== false;
+    const isTransactional = type === 'REQUEST_ASSIGNED' ||
+      type === 'REQUEST_RESOLVED' ||
+      Boolean(customEmailFn);
+
+    const inAppEnabled = isTransactional ||
+      (user.notificationPreferences?.inAppNotifications !== false &&
+       user.notificationPreferences?.push !== false);
+
+    const emailEnabled = isTransactional
+      ? (type === 'REQUEST_ASSIGNED'
+          ? user.notificationPreferences?.assignmentUpdates !== false
+          : (type === 'REQUEST_RESOLVED'
+              ? user.notificationPreferences?.resolutionUpdates !== false
+              : (user.notificationPreferences?.emailAlerts !== false || user.notificationPreferences?.email !== false)))
+      : (user.notificationPreferences?.emailAlerts !== false &&
+         user.notificationPreferences?.email !== false);
 
     let notification = null;
 

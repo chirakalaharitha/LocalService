@@ -37,6 +37,16 @@ const userSchema = new mongoose.Schema(
       ref: 'Department',
       default: null
     },
+    assignedCategory: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    category: {
+      type: String,
+      default: '',
+      trim: true
+    },
     municipality: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Municipality',
@@ -57,6 +67,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: ''
     },
+    address: {
+      type: String,
+      default: '',
+      trim: true
+    },
     city: {
       type: String,
       default: ''
@@ -72,6 +87,10 @@ const userSchema = new mongoose.Schema(
     notificationPreferences: {
       inAppNotifications: { type: Boolean, default: true },
       emailAlerts: { type: Boolean, default: true },
+      statusUpdates: { type: Boolean, default: true },
+      assignmentUpdates: { type: Boolean, default: true },
+      resolutionUpdates: { type: Boolean, default: true },
+      communityUpdates: { type: Boolean, default: true },
       email: { type: Boolean, default: true },
       push: { type: Boolean, default: true }
     },
@@ -145,6 +164,10 @@ const userSchema = new mongoose.Schema(
 // Encrypt password using bcrypt before saving
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
+    return next();
+  }
+  // Prevent double-hashing if the password is already a bcrypt hash
+  if (typeof this.password === 'string' && /^\$2[abxy]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(this.password)) {
     return next();
   }
   const salt = await bcrypt.genSalt(10);

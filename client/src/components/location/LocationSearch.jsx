@@ -90,7 +90,7 @@ const LocationSearch = ({ onSelectLocation, disabled = false }) => {
   return (
     <div ref={containerRef} className="relative w-full">
       <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#6B4E71]">
           <HiOutlineSearch className="text-base" />
         </div>
 
@@ -103,18 +103,18 @@ const LocationSearch = ({ onSelectLocation, disabled = false }) => {
           }}
           disabled={disabled}
           placeholder="Search area, landmark, street, city, or pincode..."
-          className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-10 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition shadow-inner"
+          className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2.5 pl-10 pr-10 text-xs text-[#29252A] placeholder-[#6B4E71]/60 focus:outline-none focus:border-[#C65F63] transition shadow-sm"
         />
 
         <div className="absolute inset-y-0 right-0 pr-3 flex items-center gap-1.5">
           {loading && (
-            <div className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+            <div className="w-3.5 h-3.5 border-2 border-[#C65F63] border-t-transparent rounded-full animate-spin" />
           )}
           {query && !loading && (
             <button
               type="button"
               onClick={handleClear}
-              className="text-slate-400 hover:text-slate-200 transition"
+              className="text-[#6B4E71] hover:text-[#29252A] transition"
               title="Clear search"
             >
               <HiX className="text-sm" />
@@ -125,22 +125,22 @@ const LocationSearch = ({ onSelectLocation, disabled = false }) => {
 
       {/* Search Results Dropdown */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-800/80">
+        <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-[#EFE7E0] rounded-2xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-[#EFE7E0]">
           {loading && results.length === 0 && (
-            <div className="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-              <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+            <div className="p-4 text-center text-xs text-[#6B4E71] flex items-center justify-center gap-2">
+              <div className="w-3 h-3 border-2 border-[#C65F63] border-t-transparent rounded-full animate-spin" />
               <span>Searching locations...</span>
             </div>
           )}
 
           {!loading && hasSearched && results.length === 0 && (
-            <div className="p-4 text-center text-xs text-slate-400">
+            <div className="p-4 text-center text-xs text-[#6B4E71]">
               No location results found. Try a different search.
             </div>
           )}
 
           {searchError && (
-            <div className="p-3 text-center text-xs text-rose-400">
+            <div className="p-3 text-center text-xs text-red-600">
               {searchError}
             </div>
           )}
@@ -150,17 +150,17 @@ const LocationSearch = ({ onSelectLocation, disabled = false }) => {
               key={item.placeId || idx}
               type="button"
               onClick={() => handleSelect(item)}
-              className="w-full text-left p-3 hover:bg-slate-800/90 transition flex items-start gap-2.5 group"
+              className="w-full text-left p-3 hover:bg-[#FAF5F0] transition flex items-start gap-2.5 group"
             >
-              <HiOutlineLocationMarker className="text-blue-400 text-base shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+              <HiOutlineLocationMarker className="text-[#C65F63] text-base shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-semibold text-slate-200 line-clamp-1 group-hover:text-blue-300">
+                <div className="text-xs font-semibold text-[#29252A] line-clamp-1 group-hover:text-[#C65F63]">
                   {item.address || item.displayName.split(',')[0]}
                 </div>
-                <div className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
+                <div className="text-[11px] text-[#6B4E71] line-clamp-1 mt-0.5">
                   {item.displayName}
                 </div>
-                <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                <div className="text-[10px] text-[#6B4E71]/70 font-mono mt-0.5">
                   Lat: {item.lat.toFixed(5)}, Lng: {item.lng.toFixed(5)}
                 </div>
               </div>

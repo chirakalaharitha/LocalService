@@ -7,13 +7,12 @@ const { sendPasswordResetOtpEmail, sendEmailVerificationOtp } = require('../serv
 
 // @desc    Register new citizen user & send 6-digit verification OTP
 // @route   POST /api/auth/register
-// @access  Public (Citizen ONLY)
-// @desc    Register new citizen user & send 6-digit verification OTP
+// @desc    Register new citizen user (Direct activation, no email verification OTP)
 // @route   POST /api/auth/register
 // @access  Public (Citizen ONLY)
 const registerUser = async (req, res, next) => {
   try {
-    const { fullName, name, email, phone, password, confirmPassword, city, state, pincode } = req.body;
+    const { fullName, name, email, phone, password, confirmPassword, address, city, state, pincode } = req.body;
 
     const errors = [];
 
@@ -80,20 +79,15 @@ const registerUser = async (req, res, next) => {
           errors: [{ field: 'email', message: 'This email is reserved for administrative services. Please sign in.' }]
         });
       }
-      if (existingUser.isVerified !== false && existingUser.emailVerified !== false) {
-        return res.status(409).json({
-          success: false,
-          message: 'An account with this email already exists.',
-          errors: [{ field: 'email', message: 'An account with this email already exists.' }]
-        });
-      }
+      return res.status(409).json({
+        success: false,
+        message: 'An account with this email already exists.',
+        errors: [{ field: 'email', message: 'An account with this email already exists.' }]
+      });
     }
 
     // 8. Check Duplicate Phone
-    const existingPhoneUser = await User.findOne({
-      phone: cleanPhone,
-      $or: [{ emailVerified: true }, { isVerified: true }]
-    });
+    const existingPhoneUser = await User.findOne({ phone: cleanPhone });
     if (existingPhoneUser && existingPhoneUser.email !== normalizedEmail) {
       return res.status(409).json({
         success: false,
@@ -102,67 +96,51 @@ const registerUser = async (req, res, next) => {
       });
     }
 
-    // 9. Generate Cryptographically Secure 6-Digit OTP (100000 - 999999)
-    const otpNumber = crypto.randomInt(100000, 1000000).toString();
-    const hashedOtp = await bcrypt.hash(otpNumber, 10);
-    const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes validity
-    const resendCooldown = new Date(Date.now() + 60 * 1000); // 60 seconds cooldown
-
-    // 10. ATTEMPT EMAIL TRANSMISSION FIRST - DO NOT CLAIM SENT IF FAILED
-    const emailResult = await sendEmailVerificationOtp({
-      to: normalizedEmail,
-      recipientName: userName,
-      otp: otpNumber
-    });
-
-    if (!emailResult || !emailResult.success) {
-      console.error(`[REGISTRATION FAILED] Verification email delivery failed to ${normalizedEmail}:`, {
-        error: emailResult?.error || 'Unknown error',
-        code: emailResult?.code || 'EMAIL_FAILED'
-      });
-      const userMessage = "We couldn't send the verification email right now. Please try again in a few moments.";
-
-      return res.status(503).json({
-        success: false,
-        message: userMessage,
-        code: emailResult?.code || 'EMAIL_DELIVERY_FAILED',
-        errors: [{ field: 'email', message: userMessage }]
-      });
-    }
-
-    // 11. Only save or update citizen in DB after email is successfully handed off to SMTP
-    const citizenData = {
+    // 9. Save citizen directly as verified and active (NO Nodemailer email or OTP sent)
+    const citizen = await User.create({
       name: userName,
       email: normalizedEmail,
       phone: cleanPhone,
-      password, // Pre-save hook will hash
-      role: 'CITIZEN', // STRICT CITIZEN ONLY - CLIENT CANNOT OVERRIDE
-      isVerified: false,
-      emailVerified: false,
+      password, // User pre-save hook hashes with bcrypt
+      role: 'CITIZEN', // STRICT CITIZEN ONLY - CANNOT BE OVERRIDDEN
+      isVerified: true,
+      emailVerified: true,
       isActive: true,
-      verificationOtp: hashedOtp,
-      emailVerificationOtp: hashedOtp,
-      verificationOtpExpires: otpExpires,
-      emailVerificationOtpExpires: otpExpires,
-      verificationOtpAttempts: 0,
-      emailVerificationOtpAttempts: 0,
-      verificationOtpResendAfter: resendCooldown,
+      address: address ? address.trim() : '',
       city: city ? city.trim() : '',
       state: state ? state.trim() : '',
       pincode: cleanPincode
-    };
+    });
 
-    if (existingUser && (existingUser.isVerified === false || existingUser.emailVerified === false)) {
-      Object.assign(existingUser, citizenData);
-      await existingUser.save();
-    } else {
-      await User.create(citizenData);
-    }
+    // 10. Generate JWT auth token for instant login
+    const token = generateToken(citizen._id, citizen.role);
+
+    const safeUser = {
+      id: citizen._id,
+      _id: citizen._id,
+      fullName: citizen.name,
+      name: citizen.name,
+      email: citizen.email,
+      phone: citizen.phone,
+      role: citizen.role,
+      department: citizen.department,
+      municipality: citizen.municipality,
+      ward: citizen.ward || '',
+      serviceArea: citizen.serviceArea || '',
+      profileImage: citizen.profileImage || '',
+      address: citizen.address || '',
+      isActive: citizen.isActive,
+      city: citizen.city,
+      state: citizen.state,
+      pincode: citizen.pincode,
+      notificationPreferences: citizen.notificationPreferences
+    };
 
     res.status(201).json({
       success: true,
-      message: 'Registration successful. Verification OTP sent to your registered email.',
-      email: normalizedEmail
+      message: 'Account created successfully!',
+      token,
+      user: safeUser
     });
   } catch (error) {
     next(error);
@@ -402,7 +380,7 @@ const loginUser = async (req, res, next) => {
     const normalizedEmail = email.toLowerCase().trim();
     const user = await User.findOne({ email: normalizedEmail })
       .select('+password')
-      .populate('department', 'name code')
+      .populate('department', 'name code description category icon')
       .populate('municipality', 'name code city state country wards');
 
     if (!user) {
@@ -419,14 +397,12 @@ const loginUser = async (req, res, next) => {
       });
     }
 
-    // Check email verification for Citizen role
-    if (user.role === 'CITIZEN' && (user.isVerified !== true || user.emailVerified !== true)) {
-      return res.status(403).json({
-        success: false,
-        isUnverified: true,
-        email: user.email,
-        message: 'Please verify your email before signing in.'
-      });
+    // Citizen registration does not require email verification
+    // Existing citizens are automatically verified upon login if not already
+    if (user.role === 'CITIZEN' && (!user.isVerified || !user.emailVerified)) {
+      user.isVerified = true;
+      user.emailVerified = true;
+      await user.save({ validateBeforeSave: false });
     }
 
     const isMatch = await user.matchPassword(password);
@@ -448,13 +424,19 @@ const loginUser = async (req, res, next) => {
       phone: user.phone,
       role: user.role,
       department: user.department,
+      assignedCategory: user.assignedCategory || user.category || user.department?.category || user.department?.name || '',
+      category: user.category || user.assignedCategory || user.department?.category || user.department?.name || '',
       municipality: user.municipality,
       ward: user.ward || '',
       serviceArea: user.serviceArea || '',
+      profileImage: user.profileImage || '',
+      address: user.address || '',
       isActive: user.isActive,
       city: user.city,
       state: user.state,
-      pincode: user.pincode
+      pincode: user.pincode,
+      createdAt: user.createdAt,
+      notificationPreferences: user.notificationPreferences
     };
 
     res.status(200).json({
@@ -474,7 +456,7 @@ const loginUser = async (req, res, next) => {
 const getMe = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id)
-      .populate('department', 'name code description')
+      .populate('department', 'name code description category icon')
       .populate('municipality', 'name code city state country wards');
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
@@ -489,13 +471,18 @@ const getMe = async (req, res, next) => {
       phone: user.phone,
       role: user.role,
       department: user.department,
+      assignedCategory: user.assignedCategory || user.category || user.department?.category || user.department?.name || '',
+      category: user.category || user.assignedCategory || user.department?.category || user.department?.name || '',
       municipality: user.municipality,
       ward: user.ward || '',
       serviceArea: user.serviceArea || '',
+      profileImage: user.profileImage || '',
+      address: user.address || '',
       isActive: user.isActive,
       city: user.city,
       state: user.state,
       pincode: user.pincode,
+      createdAt: user.createdAt,
       notificationPreferences: user.notificationPreferences
     };
 
@@ -513,7 +500,7 @@ const getMe = async (req, res, next) => {
 // @access  Private
 const updateProfile = async (req, res, next) => {
   try {
-    const { fullName, name, phone, city, state, pincode, notificationPreferences, profileImage } = req.body;
+    const { fullName, name, phone, address, city, state, pincode, notificationPreferences, profileImage } = req.body;
 
     const user = await User.findById(req.user._id);
     if (!user) {
@@ -522,6 +509,7 @@ const updateProfile = async (req, res, next) => {
 
     if (fullName || name) user.name = fullName || name;
     if (phone) user.phone = phone;
+    if (address !== undefined) user.address = address;
     if (city !== undefined) user.city = city;
     if (state !== undefined) user.state = state;
     if (pincode !== undefined) user.pincode = pincode;
@@ -534,7 +522,9 @@ const updateProfile = async (req, res, next) => {
     }
 
     await user.save();
-    const updatedUser = await User.findById(user._id).populate('department', 'name code');
+    const updatedUser = await User.findById(user._id)
+      .populate('department', 'name code description category icon')
+      .populate('municipality', 'name code city state country wards');
 
     const safeUser = {
       id: updatedUser._id,
@@ -545,10 +535,19 @@ const updateProfile = async (req, res, next) => {
       phone: updatedUser.phone,
       role: updatedUser.role,
       department: updatedUser.department,
+      assignedCategory: updatedUser.assignedCategory || updatedUser.category || updatedUser.department?.category || updatedUser.department?.name || '',
+      category: updatedUser.category || updatedUser.assignedCategory || updatedUser.department?.category || updatedUser.department?.name || '',
+      municipality: updatedUser.municipality,
+      ward: updatedUser.ward || '',
+      serviceArea: updatedUser.serviceArea || '',
+      profileImage: updatedUser.profileImage || '',
+      address: updatedUser.address || '',
       isActive: updatedUser.isActive,
       city: updatedUser.city,
       state: updatedUser.state,
-      pincode: updatedUser.pincode
+      pincode: updatedUser.pincode,
+      createdAt: updatedUser.createdAt,
+      notificationPreferences: updatedUser.notificationPreferences
     };
 
     res.status(200).json({
@@ -571,11 +570,16 @@ const getNotificationPreferences = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
+    const currentPrefs = user.notificationPreferences || {};
     const prefs = {
-      inAppNotifications: user.notificationPreferences?.inAppNotifications ?? user.notificationPreferences?.push ?? true,
-      emailAlerts: user.notificationPreferences?.emailAlerts ?? user.notificationPreferences?.email ?? true,
-      email: user.notificationPreferences?.emailAlerts ?? user.notificationPreferences?.email ?? true,
-      push: user.notificationPreferences?.inAppNotifications ?? user.notificationPreferences?.push ?? true
+      emailAlerts: currentPrefs.emailAlerts ?? currentPrefs.email ?? true,
+      inAppNotifications: currentPrefs.inAppNotifications ?? currentPrefs.push ?? true,
+      statusUpdates: currentPrefs.statusUpdates ?? true,
+      assignmentUpdates: currentPrefs.assignmentUpdates ?? true,
+      resolutionUpdates: currentPrefs.resolutionUpdates ?? true,
+      communityUpdates: currentPrefs.communityUpdates ?? true,
+      email: currentPrefs.emailAlerts ?? currentPrefs.email ?? true,
+      push: currentPrefs.inAppNotifications ?? currentPrefs.push ?? true
     };
 
     res.status(200).json({
@@ -592,7 +596,16 @@ const getNotificationPreferences = async (req, res, next) => {
 // @access  Private
 const updateNotificationPreferences = async (req, res, next) => {
   try {
-    const { inAppNotifications, emailAlerts, email, push } = req.body;
+    const {
+      inAppNotifications,
+      emailAlerts,
+      statusUpdates,
+      assignmentUpdates,
+      resolutionUpdates,
+      communityUpdates,
+      email,
+      push
+    } = req.body;
 
     const user = await User.findById(req.user._id);
     if (!user) {
@@ -602,10 +615,18 @@ const updateNotificationPreferences = async (req, res, next) => {
     const currentPrefs = user.notificationPreferences || {};
     const updatedInApp = inAppNotifications !== undefined ? !!inAppNotifications : (push !== undefined ? !!push : (currentPrefs.inAppNotifications ?? true));
     const updatedEmail = emailAlerts !== undefined ? !!emailAlerts : (email !== undefined ? !!email : (currentPrefs.emailAlerts ?? true));
+    const updatedStatus = statusUpdates !== undefined ? !!statusUpdates : (currentPrefs.statusUpdates ?? true);
+    const updatedAssignment = assignmentUpdates !== undefined ? !!assignmentUpdates : (currentPrefs.assignmentUpdates ?? true);
+    const updatedResolution = resolutionUpdates !== undefined ? !!resolutionUpdates : (currentPrefs.resolutionUpdates ?? true);
+    const updatedCommunity = communityUpdates !== undefined ? !!communityUpdates : (currentPrefs.communityUpdates ?? true);
 
     user.notificationPreferences = {
       inAppNotifications: updatedInApp,
       emailAlerts: updatedEmail,
+      statusUpdates: updatedStatus,
+      assignmentUpdates: updatedAssignment,
+      resolutionUpdates: updatedResolution,
+      communityUpdates: updatedCommunity,
       email: updatedEmail,
       push: updatedInApp
     };
@@ -869,6 +890,192 @@ const resetPassword = async (req, res, next) => {
   }
 };
 
+// @desc    Change password for authenticated user
+// @route   PATCH /api/auth/change-password
+// @access  Private
+const changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long'
+      });
+    }
+
+    const user = await User.findById(req.user._id).select('+password');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password does not match'
+      });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Upload profile picture for authenticated user
+// @route   POST /api/auth/profile-image
+// @access  Private
+const uploadProfileImage = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please select an image file to upload'
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const profileImageUrl = `/uploads/${req.file.filename}`;
+    user.profileImage = profileImageUrl;
+    await user.save();
+
+    const populatedUser = await User.findById(user._id)
+      .populate('department', 'name code description category icon')
+      .populate('municipality', 'name code city state country wards');
+
+    const safeUser = {
+      id: populatedUser._id,
+      _id: populatedUser._id,
+      fullName: populatedUser.name,
+      name: populatedUser.name,
+      email: populatedUser.email,
+      phone: populatedUser.phone,
+      role: populatedUser.role,
+      department: populatedUser.department,
+      assignedCategory: populatedUser.assignedCategory || populatedUser.category || populatedUser.department?.category || populatedUser.department?.name || '',
+      category: populatedUser.category || populatedUser.assignedCategory || populatedUser.department?.category || populatedUser.department?.name || '',
+      municipality: populatedUser.municipality,
+      ward: populatedUser.ward || '',
+      serviceArea: populatedUser.serviceArea || '',
+      profileImage: profileImageUrl,
+      address: populatedUser.address || '',
+      city: populatedUser.city,
+      state: populatedUser.state,
+      pincode: populatedUser.pincode,
+      createdAt: populatedUser.createdAt,
+      notificationPreferences: populatedUser.notificationPreferences
+    };
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile picture uploaded successfully',
+      profileImage: profileImageUrl,
+      user: safeUser
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Remove profile picture for authenticated user
+// @route   DELETE /api/auth/profile-image
+// @access  Private
+const removeProfileImage = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    user.profileImage = '';
+    await user.save();
+
+    const populatedUser = await User.findById(user._id)
+      .populate('department', 'name code description category icon')
+      .populate('municipality', 'name code city state country wards');
+
+    const safeUser = {
+      id: populatedUser._id,
+      _id: populatedUser._id,
+      fullName: populatedUser.name,
+      name: populatedUser.name,
+      email: populatedUser.email,
+      phone: populatedUser.phone,
+      role: populatedUser.role,
+      department: populatedUser.department,
+      assignedCategory: populatedUser.assignedCategory || populatedUser.category || populatedUser.department?.category || populatedUser.department?.name || '',
+      category: populatedUser.category || populatedUser.assignedCategory || populatedUser.department?.category || populatedUser.department?.name || '',
+      municipality: populatedUser.municipality,
+      ward: populatedUser.ward || '',
+      serviceArea: populatedUser.serviceArea || '',
+      profileImage: '',
+      address: populatedUser.address || '',
+      city: populatedUser.city,
+      state: populatedUser.state,
+      pincode: populatedUser.pincode,
+      createdAt: populatedUser.createdAt,
+      notificationPreferences: populatedUser.notificationPreferences
+    };
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile picture removed successfully',
+      user: safeUser
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Delete current user's account
+// @route   DELETE /api/auth/account
+// @access  Private
+const deleteAccount = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.role === 'ADMIN') {
+      return res.status(400).json({
+        success: false,
+        message: 'Administrator accounts cannot be deleted directly from Settings.'
+      });
+    }
+
+    // Soft delete user and anonymize email so they can re-register if desired
+    user.isActive = false;
+    user.email = `deleted_${Date.now()}_${user.email}`;
+    await user.save({ validateBeforeSave: false });
+
+    res.status(200).json({
+      success: true,
+      message: 'Account deleted successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   registerUser,
   verifyEmailOtp,
@@ -876,8 +1083,12 @@ module.exports = {
   loginUser,
   getMe,
   updateProfile,
+  changePassword,
+  uploadProfileImage,
+  removeProfileImage,
   getNotificationPreferences,
   updateNotificationPreferences,
+  deleteAccount,
   forgotPassword,
   verifyResetOtp,
   resetPassword

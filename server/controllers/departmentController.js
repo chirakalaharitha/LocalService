@@ -279,7 +279,23 @@ const assignStaffToDepartment = async (req, res, next) => {
     }
 
     staff.department = dept._id;
+    if (dept.category) {
+      staff.assignedCategory = dept.category;
+      staff.category = dept.category;
+    } else if (dept.name) {
+      staff.assignedCategory = dept.name;
+      staff.category = dept.name;
+    }
     await staff.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user:${staff._id}`).emit('user:updated', {
+        userId: staff._id,
+        department: { _id: dept._id, name: dept.name, code: dept.code, category: dept.category || dept.name },
+        assignedCategory: staff.assignedCategory
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -289,6 +305,7 @@ const assignStaffToDepartment = async (req, res, next) => {
         name: staff.name,
         email: staff.email,
         department: dept._id,
+        assignedCategory: staff.assignedCategory,
         isActive: staff.isActive
       }
     });

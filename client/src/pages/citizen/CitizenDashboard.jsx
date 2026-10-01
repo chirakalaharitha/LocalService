@@ -8,339 +8,272 @@ import {
   HiOutlineCheckCircle,
   HiOutlineClock,
   HiOutlineExclamationCircle,
-  HiOutlineUser,
+  HiOutlineArrowRight,
   HiOutlineLocationMarker,
-  HiOutlineRefresh,
-  HiOutlineStar
+  HiOutlineSparkles
 } from 'react-icons/hi';
+
+const QUICK_SERVICES = [
+  { id: 'road', category: 'ROAD', title: 'Road & Pothole', icon: '🛣️', color: 'bg-orange-50 text-orange-600' },
+  { id: 'water', category: 'WATER', title: 'Water Supply', icon: '💧', color: 'bg-blue-50 text-blue-600' },
+  { id: 'streetlight', category: 'STREET_LIGHT', title: 'Streetlight', icon: '💡', color: 'bg-amber-50 text-amber-600' },
+  { id: 'drainage', category: 'DRAINAGE', title: 'Drainage', icon: '🌊', color: 'bg-cyan-50 text-cyan-600' },
+  { id: 'garbage', category: 'GARBAGE', title: 'Garbage & Sanitation', icon: '🗑️', color: 'bg-emerald-50 text-emerald-600' },
+  { id: 'parks', category: 'PUBLIC_AREA', title: 'Parks & Greenery', icon: '🌳', color: 'bg-green-50 text-green-600' },
+  { id: 'traffic', category: 'OTHER', title: 'Traffic & Signs', icon: '🚦', color: 'bg-purple-50 text-purple-600' }
+];
 
 const CitizenDashboard = () => {
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  const fetchRequests = async () => {
+  const fetchDashboardData = async () => {
     setLoading(true);
-    setError(null);
     try {
-      const res = await API.get('/requests?limit=10');
-      if (res.data.success) {
-        setRequests(res.data.requests);
+      const [reqRes, notifRes] = await Promise.all([
+        API.get('/requests?limit=10'),
+        API.get('/notifications?limit=5')
+      ]);
+
+      if (reqRes.data.success) {
+        setRequests(reqRes.data.requests || []);
+      }
+      if (notifRes.data.success) {
+        setNotifications(notifRes.data.notifications || []);
       }
     } catch (err) {
-      console.error("Dashboard fetch error:", err);
-      setError("Unable to load your service requests. Please check connection and try again.");
+      console.error('Citizen Dashboard fetch error:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRequests();
+    fetchDashboardData();
   }, []);
 
   const total = requests.length;
-  const pending = requests.filter(r => r.status === 'PENDING' || r.status === 'UNDER_REVIEW').length;
-  const inProgress = requests.filter(r => ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS'].includes(r.status)).length;
-  const awaitingVerification = requests.filter(r => r.status === 'RESOLVED' || r.status === 'RESOLUTION_SUBMITTED').length;
-  const resolved = requests.filter(r => r.status === 'CITIZEN_VERIFIED').length;
+  const inProgress = requests.filter((r) => ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS'].includes(r.status)).length;
+  const resolved = requests.filter((r) => ['CITIZEN_VERIFIED', 'CLOSED'].includes(r.status)).length;
+  const pendingVerification = requests.filter((r) =>
+    ['RESOLVED', 'RESOLUTION_SUBMITTED', 'PENDING_VERIFICATION'].includes(r.status)
+  ).length;
 
   return (
-    <div className="space-y-8">
-      
-      {/* Welcome Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-white tracking-tight">
-            Welcome back, <span className="text-blue-400">{user?.fullName || user?.name || 'Citizen'}</span> 👋
+    <div className="space-y-6">
+      {/* Welcome Banner matching Reference Screenshot */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black text-[#29252A] tracking-tight">
+            Welcome back, {user?.name || 'Citizen'}! 👋
           </h1>
-          <p className="text-xs text-slate-400">Track your local service requests and stay updated on field resolution progress</p>
+          <p className="text-xs sm:text-sm text-[#6B666E] mt-0.5">
+            Let's keep our city clean, safe and beautiful.
+          </p>
         </div>
 
-        <Link
-          to="/requests/create"
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-blue-600/25 transition"
-        >
-          <HiOutlinePlusCircle className="text-lg" />
-          <span>Report New Problem</span>
-        </Link>
-      </div>
-
-      {/* Verification Required Section */}
-      {requests.filter(r => ['RESOLVED', 'RESOLUTION_SUBMITTED', 'PENDING_VERIFICATION'].includes(r.status)).length > 0 && (
-        <div className="bg-slate-900 border border-emerald-500/40 rounded-2xl p-6 space-y-4 shadow-xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5 text-emerald-400 font-bold text-base">
-              <HiOutlineCheckCircle className="text-2xl" />
-              <span>Verification Required ({requests.filter(r => ['RESOLVED', 'RESOLUTION_SUBMITTED', 'PENDING_VERIFICATION'].includes(r.status)).length})</span>
-            </div>
-            <span className="text-[11px] text-slate-400">Action Needed: Inspect resolution proof & verify completion</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {requests
-              .filter(r => ['RESOLVED', 'RESOLUTION_SUBMITTED', 'PENDING_VERIFICATION'].includes(r.status))
-              .map(r => (
-                <div key={r._id} className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col justify-between gap-3">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-bold text-blue-400">{r.requestId}</span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                        Pending Verification
-                      </span>
-                    </div>
-                    <div className="text-sm font-bold text-slate-100">{r.title}</div>
-                    <div className="text-xs text-slate-400 flex items-center gap-2">
-                      <span>{r.category}</span>
-                      <span>•</span>
-                      <span>Resolved: {r.resolvedAt ? new Date(r.resolvedAt).toLocaleDateString() : 'Recently'}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-900">
-                    <Link
-                      to={`/requests/${r._id}`}
-                      className="flex-1 text-center py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 transition"
-                    >
-                      Verify Resolution →
-                    </Link>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* Feedback Pending Section */}
-      {requests.filter(r => (r.status === 'CITIZEN_VERIFIED' || r.status === 'CLOSED') && !r.citizenVerification?.rating).length > 0 && (
-        <div className="bg-slate-900 border border-amber-500/30 rounded-2xl p-6 space-y-4 shadow-xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5 text-amber-400 font-bold text-base">
-              <HiOutlineStar className="text-2xl" />
-              <span>Feedback Pending ({requests.filter(r => (r.status === 'CITIZEN_VERIFIED' || r.status === 'CLOSED') && !r.citizenVerification?.rating).length})</span>
-            </div>
-            <span className="text-[11px] text-slate-400">Share your 1-5 star service rating for resolved tickets</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {requests
-              .filter(r => (r.status === 'CITIZEN_VERIFIED' || r.status === 'CLOSED') && !r.citizenVerification?.rating)
-              .map(r => (
-                <div key={r._id} className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col justify-between gap-3">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-bold text-blue-400">{r.requestId}</span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                        Closed / Verified
-                      </span>
-                    </div>
-                    <div className="text-sm font-bold text-slate-100">{r.title}</div>
-                    <div className="text-xs text-slate-400 flex items-center gap-2">
-                      <span>{r.category}</span>
-                      <span>•</span>
-                      <span>Verified: {r.verifiedAt ? new Date(r.verifiedAt).toLocaleDateString() : 'Completed'}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-900">
-                    <Link
-                      to={`/requests/${r._id}`}
-                      className="flex-1 text-center py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-lg shadow-amber-600/20 transition"
-                    >
-                      Rate This Service ⭐
-                    </Link>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-          <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span>Total Submitted</span>
-            <HiOutlineClipboardList className="text-blue-400 text-lg" />
-          </div>
-          <div className="text-3xl font-black text-white">{total}</div>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-          <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span>Pending</span>
-            <HiOutlineClock className="text-amber-400 text-lg" />
-          </div>
-          <div className="text-3xl font-black text-amber-400">{pending}</div>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-          <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span>In Progress</span>
-            <HiOutlineExclamationCircle className="text-teal-400 text-lg" />
-          </div>
-          <div className="text-3xl font-black text-teal-400">{inProgress}</div>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-          <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span>Awaiting Verify</span>
-            <HiOutlineStar className="text-indigo-400 text-lg" />
-          </div>
-          <div className="text-3xl font-black text-indigo-400">{awaitingVerification}</div>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-          <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span>Verified Fixed</span>
-            <HiOutlineCheckCircle className="text-emerald-400 text-lg" />
-          </div>
-          <div className="text-3xl font-black text-emerald-400">{resolved}</div>
+        {/* Location & Weather Widget Pill */}
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-[#EFE7E0] shadow-sm text-xs font-semibold text-[#29252A]">
+          <span className="text-[#C65F63]">📍</span>
+          <span>{user?.city || user?.municipality?.city || 'Tenali'}</span>
+          <span className="text-[#9E98A2]">•</span>
+          <span className="text-[#6B666E]">Partly Cloudy 32°C</span>
         </div>
       </div>
 
-      {/* Main Content Grid: My Recent Requests + Profile Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Recent Requests Table (2 cols) */}
-        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+      {/* 4 Stats Cards Grid matching Reference Screenshot */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-3xl border border-[#EFE7E0] p-5 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-white">My Submitted Complaints</h2>
-            <Link to="/requests" className="text-xs text-blue-400 font-semibold hover:underline">
-              View All History →
+            <span className="text-xs font-bold text-[#6B666E]">Total Requests</span>
+            <div className="w-8 h-8 rounded-xl bg-rose-50 text-[#C65F63] flex items-center justify-center text-base">
+              📊
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl sm:text-3xl font-black text-[#29252A]">{total}</span>
+            <span className="text-[11px] font-semibold text-emerald-600">↑ active</span>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-3xl border border-[#EFE7E0] p-5 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-[#6B666E]">In Progress</span>
+            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-base">
+              ⏱️
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl sm:text-3xl font-black text-[#29252A]">{inProgress}</span>
+            <span className="text-[11px] font-semibold text-amber-600">assigned</span>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-3xl border border-[#EFE7E0] p-5 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-[#6B666E]">Resolved</span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-base">
+              ✅
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl sm:text-3xl font-black text-[#29252A]">{resolved}</span>
+            <span className="text-[11px] font-semibold text-emerald-600">verified</span>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-3xl border border-[#EFE7E0] p-5 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-[#6B666E]">Pending Verification</span>
+            <div className="w-8 h-8 rounded-xl bg-[#FDECEF] text-[#C65F63] flex items-center justify-center text-base">
+              🔍
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl sm:text-3xl font-black text-[#C65F63]">{pendingVerification}</span>
+            <span className="text-[11px] font-semibold text-[#C65F63]">needs review</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Services Section matching Reference Screenshot */}
+      <div className="bg-white rounded-3xl border border-[#EFE7E0] p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-extrabold text-[#29252A] tracking-tight">
+            Quick Services
+          </h2>
+          <Link
+            to="/services"
+            className="text-xs font-bold text-[#C65F63] hover:underline flex items-center gap-1"
+          >
+            <span>View All</span>
+            <span>→</span>
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          {QUICK_SERVICES.map((s) => (
+            <Link
+              key={s.id}
+              to={`/requests/create?category=${s.category}`}
+              className="p-4 rounded-2xl bg-[#FAF5F0] hover:bg-[#FDECEF] border border-[#EFE7E0] hover:border-[#C65F63]/30 transition text-center flex flex-col items-center justify-center gap-2 group"
+            >
+              <div className="text-3xl group-hover:scale-110 transition">{s.icon}</div>
+              <span className="text-xs font-bold text-[#29252A] group-hover:text-[#C65F63] line-clamp-1 leading-tight">
+                {s.title}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Main Grid: My Recent Requests & Recent Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left: Active Complaints Table/Cards (8 cols on lg) */}
+        <div className="lg:col-span-8 bg-white rounded-3xl border border-[#EFE7E0] p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-extrabold text-[#29252A] tracking-tight">
+              My Active Requests
+            </h3>
+            <Link
+              to="/requests"
+              className="text-xs font-bold text-[#C65F63] hover:underline"
+            >
+              See All History →
             </Link>
           </div>
 
           {loading ? (
-            <div className="py-12 text-center text-xs text-slate-500 space-y-2">
-              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <div>Loading requests from database...</div>
-            </div>
-          ) : error ? (
-            <div className="py-8 text-center text-xs text-rose-400 bg-rose-500/10 rounded-xl border border-rose-500/20 space-y-3">
-              <p>{error}</p>
-              <button
-                onClick={fetchRequests}
-                className="px-3 py-1.5 rounded-lg bg-rose-600 text-white font-semibold inline-flex items-center gap-1"
-              >
-                <HiOutlineRefresh />
-                <span>Retry</span>
-              </button>
+            <div className="py-12 text-center text-xs text-[#6B666E]">
+              Loading your requests...
             </div>
           ) : requests.length === 0 ? (
-            <div className="py-12 text-center text-xs text-slate-500 space-y-3 bg-slate-950 rounded-xl border border-slate-800 p-6">
-              <p className="text-slate-400">You haven't submitted any civic service requests yet.</p>
+            <div className="py-12 text-center space-y-3">
+              <div className="text-4xl">🌱</div>
+              <p className="text-xs text-[#6B666E]">You haven't reported any civic problems yet.</p>
               <Link
                 to="/requests/create"
-                className="inline-block px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold text-xs"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#C65F63] text-white text-xs font-bold shadow-md shadow-[#C65F63]/25"
               >
                 Report Your First Issue
               </Link>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead className="bg-slate-950 text-slate-400 uppercase font-semibold text-[10px]">
-                  <tr>
-                    <th className="p-3 rounded-l-xl">ID</th>
-                    <th className="p-3">Title & Category</th>
-                    <th className="p-3">Priority</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3 rounded-r-xl text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60 font-medium">
-                  {requests.map((r) => (
-                    <tr key={r._id} className="hover:bg-slate-800/40 transition">
-                      <td className="p-3 font-mono font-bold text-blue-400">{r.requestId}</td>
-                      <td className="p-3">
-                        <div className="font-bold text-slate-100">{r.title}</div>
-                        <div className="text-[10px] text-slate-500">{r.category} • {r.address}</div>
-                      </td>
-                      <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                          r.priority === 'CRITICAL' ? 'bg-rose-500/20 text-rose-400' :
-                          r.priority === 'HIGH' ? 'bg-amber-500/20 text-amber-400' :
-                          r.priority === 'MEDIUM' ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-800 text-slate-400'
-                        }`}>
-                          {r.priority}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
-                          r.status === 'CITIZEN_VERIFIED' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                          r.status === 'RESOLVED' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 animate-pulse' :
-                          r.status === 'IN_PROGRESS' ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30' :
-                          'bg-slate-800 text-slate-300'
-                        }`}>
-                          {r.status.replace(/_/g, ' ')}
-                        </span>
-                      </td>
-                      <td className="p-3 text-right">
-                        <Link
-                          to={`/requests/${r._id}`}
-                          className="px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 font-semibold transition"
-                        >
-                          Track →
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="divide-y divide-[#EFE7E0]">
+              {requests.slice(0, 4).map((r) => (
+                <div key={r._id} className="py-3.5 flex items-center justify-between gap-3">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-[#C65F63]">
+                        {r.requestId}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FAF5F0] text-[#6B4E71] border border-[#EFE7E0]">
+                        {r.category}
+                      </span>
+                    </div>
+                    <div className="text-xs font-bold text-[#29252A] truncate">
+                      {r.title}
+                    </div>
+                    <div className="text-[11px] text-[#6B666E] truncate">
+                      🏛️ {r.municipalitySnapshot?.name || r.municipality?.name || 'Local Authority'} • {r.address}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-[#FAF5F0] border border-[#EFE7E0] text-[#29252A]">
+                      {r.status?.replace(/_/g, ' ')}
+                    </span>
+                    <Link
+                      to={`/requests/${r._id || r.requestId}`}
+                      className="px-3 py-1.5 rounded-xl bg-[#C65F63]/10 hover:bg-[#C65F63]/20 text-[#C65F63] text-xs font-bold transition"
+                    >
+                      View
+                    </Link>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
 
-        {/* Profile Summary Card (1 col) */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <HiOutlineUser className="text-teal-400" />
-            <span>Citizen Profile</span>
-          </h2>
+        {/* Right: Recent Activity Card (4 cols on lg) matching Reference Screenshot */}
+        <div className="lg:col-span-4 bg-white rounded-3xl border border-[#EFE7E0] p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-extrabold text-[#29252A] tracking-tight">
+              Recent Activity
+            </h3>
+          </div>
 
-          <div className="bg-slate-950 rounded-xl p-4 border border-slate-800 space-y-3 text-xs">
-            <div className="flex items-center gap-3 pb-3 border-b border-slate-800">
-              <div className="w-10 h-10 rounded-xl bg-blue-600/30 text-blue-400 border border-blue-500/40 flex items-center justify-center font-bold text-sm uppercase">
-                {user?.name ? user.name.substring(0, 2) : 'US'}
+          <div className="space-y-3">
+            {notifications.length === 0 ? (
+              <div className="py-8 text-center text-xs text-[#9E98A2]">
+                No recent activity recorded yet.
               </div>
-              <div>
-                <div className="font-bold text-slate-100 text-sm">{user?.fullName || user?.name}</div>
-                <div className="text-[10px] text-teal-400 font-semibold uppercase">{user?.role} ACCOUNT</div>
-              </div>
-            </div>
-
-            <div className="space-y-1.5 text-slate-300">
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Email:</span>
-                <span className="font-semibold text-slate-200">{user?.email}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Phone:</span>
-                <span className="font-mono text-slate-200">{user?.phone || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">City:</span>
-                <span className="text-slate-200">{user?.city || 'Metro City'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Account Status:</span>
-                <span className="text-emerald-400 font-bold uppercase text-[10px]">Active</span>
-              </div>
-            </div>
-
-            <Link
-              to="/profile"
-              className="block text-center py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-blue-400 font-semibold border border-slate-800 transition mt-2"
-            >
-              Edit Profile Info
-            </Link>
+            ) : (
+              notifications.slice(0, 4).map((n) => (
+                <div
+                  key={n._id}
+                  className="p-3.5 rounded-2xl bg-[#FAF5F0] border border-[#EFE7E0] space-y-1"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">🔔</span>
+                    <span className="text-xs font-bold text-[#29252A] line-clamp-1">{n.title}</span>
+                  </div>
+                  <p className="text-[11px] text-[#6B666E] line-clamp-2 leading-relaxed">
+                    {n.message}
+                  </p>
+                  <div className="text-[9px] text-[#9E98A2] pt-1">
+                    {new Date(n.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} at{' '}
+                    {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
-
       </div>
-
     </div>
   );
 };

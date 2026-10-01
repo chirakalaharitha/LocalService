@@ -17,9 +17,13 @@ import CreateRequest from '../pages/citizen/CreateRequest';
 import RequestDetails from '../pages/citizen/RequestDetails';
 
 import StaffDashboard from '../pages/staff/StaffDashboard';
+import StaffAssignedRequests from '../pages/staff/StaffAssignedRequests';
+import StaffMyWork from '../pages/staff/StaffMyWork';
+import StaffSettingsPage from '../pages/staff/StaffSettingsPage';
 import StaffRequestDetails from '../pages/staff/StaffRequestDetails';
 
 import AdminDashboard from '../pages/admin/AdminDashboard';
+import AdminRequestsPage from '../pages/admin/AdminRequestsPage';
 import UserManagement from '../pages/admin/UserManagement';
 import AnalyticsPage from '../pages/admin/AnalyticsPage';
 import ActivityLogsPage from '../pages/admin/ActivityLogsPage';
@@ -28,7 +32,9 @@ import ReportsPage from '../pages/admin/ReportsPage';
 import DepartmentsPage from '../pages/admin/DepartmentsPage';
 import AdminSettingsPage from '../pages/admin/AdminSettingsPage';
 
+import ServicesPage from '../pages/citizen/ServicesPage';
 import ProfilePage from '../pages/ProfilePage';
+import SettingsPage from '../pages/SettingsPage';
 import NotificationsPage from '../pages/NotificationsPage';
 import NotFound from '../pages/NotFound';
 
@@ -38,6 +44,8 @@ const AppRoutes = () => {
       <Route path="/" element={<MainLayout />}>
         {/* Public Routes */}
         <Route index element={<LandingPage />} />
+        <Route path="services" element={<ServicesPage />} />
+        <Route path="dashboard/services" element={<ServicesPage />} />
         <Route path="login" element={<Login />} />
         <Route path="register" element={<Register />} />
         <Route path="verify-email" element={<VerifyEmail />} />
@@ -51,6 +59,14 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute>
               <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="settings"
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
             </ProtectedRoute>
           }
         />
@@ -126,7 +142,31 @@ const AppRoutes = () => {
           path="staff/requests"
           element={
             <ProtectedRoute allowedRoles={['STAFF', 'ADMIN']}>
-              <StaffDashboard />
+              <StaffAssignedRequests />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="staff/assigned-requests"
+          element={
+            <ProtectedRoute allowedRoles={['STAFF', 'ADMIN']}>
+              <StaffAssignedRequests />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="staff/my-work"
+          element={
+            <ProtectedRoute allowedRoles={['STAFF', 'ADMIN']}>
+              <StaffMyWork />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="staff/settings"
+          element={
+            <ProtectedRoute allowedRoles={['STAFF', 'ADMIN']}>
+              <StaffSettingsPage />
             </ProtectedRoute>
           }
         />
@@ -152,7 +192,15 @@ const AppRoutes = () => {
           path="admin/requests"
           element={
             <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminDashboard />
+              <AdminRequestsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/requests/:id"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <RequestDetails />
             </ProtectedRoute>
           }
         />

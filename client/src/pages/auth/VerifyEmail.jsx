@@ -188,17 +188,13 @@ const VerifyEmail = () => {
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-80px)] flex items-center justify-center p-4 sm:p-6 overflow-hidden">
-      {/* Ambient background glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-72 h-72 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="relative max-w-md w-full backdrop-blur-xl bg-slate-900/85 border border-slate-800/90 rounded-3xl p-6 sm:p-9 shadow-2xl shadow-slate-950/80">
+    <div className="relative min-h-[calc(100vh-80px)] flex items-center justify-center p-4 sm:p-6 bg-[#FAF5F0]">
+      <div className="relative max-w-md w-full bg-white border border-[#EFE7E0] rounded-3xl p-6 sm:p-9 shadow-sm">
         
         {/* Navigation / Back link */}
         <Link
           to="/register"
-          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors mb-5 font-medium"
+          className="inline-flex items-center gap-1.5 text-xs text-[#6B4E71] hover:text-[#C65F63] transition-colors mb-5 font-medium"
         >
           <HiOutlineArrowLeft className="text-sm" />
           <span>Back to Registration</span>
@@ -206,17 +202,17 @@ const VerifyEmail = () => {
 
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-blue-600 to-teal-500 rounded-2xl shadow-lg shadow-blue-500/25 mb-3.5">
-            <HiOutlineShieldCheck className="text-2xl text-white" />
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-[#FDECEF] text-[#C65F63] rounded-2xl shadow-sm mb-3.5 border border-[#C65F63]/20">
+            <HiOutlineShieldCheck className="text-2xl" />
           </div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs font-semibold mb-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FDECEF] border border-[#C65F63]/20 text-[#C65F63] text-xs font-semibold mb-2">
             <HiOutlineSparkles className="text-sm" />
             <span>ACCOUNT ACTIVATION</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#29252A] tracking-tight">
             Verify Your Email
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-2 leading-relaxed">
+          <p className="text-xs sm:text-sm text-[#6B4E71] mt-2 leading-relaxed">
             Enter the 6-digit code sent to your registered email to activate your Citizen account
           </p>
 
@@ -225,30 +221,30 @@ const VerifyEmail = () => {
             {isEditingEmail ? (
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
-                  <HiOutlineMail className="absolute left-3 top-3 text-slate-400 text-sm" />
+                  <HiOutlineMail className="absolute left-3 top-3 text-[#6B4E71] text-sm" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@domain.com"
-                    className="w-full bg-slate-950/80 border border-slate-700 rounded-lg py-1.5 pl-8 pr-3 text-xs text-slate-100 focus:outline-none focus:border-teal-500"
+                    className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-lg py-1.5 pl-8 pr-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsEditingEmail(false)}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium"
+                  className="px-3 py-1.5 bg-[#FAF5F0] hover:bg-[#FDECEF] text-[#6B4E71] hover:text-[#C65F63] rounded-lg text-xs font-medium border border-[#EFE7E0]"
                 >
                   Save
                 </button>
               </div>
             ) : (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-950/70 border border-slate-800 rounded-full text-xs font-medium text-teal-300">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#FAF5F0] border border-[#EFE7E0] rounded-full text-xs font-medium text-[#6B4E71]">
                 <span>{email || 'No email provided'}</span>
                 <button
                   type="button"
                   onClick={() => setIsEditingEmail(true)}
-                  className="text-[10px] text-slate-400 hover:text-slate-200 underline font-normal"
+                  className="text-[10px] text-[#C65F63] hover:underline font-normal"
                 >
                   Edit
                 </button>
@@ -259,7 +255,7 @@ const VerifyEmail = () => {
 
         {/* Error Alert */}
         {error && (
-          <div className="mb-5 p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs sm:text-sm flex items-start gap-2.5 animate-fadeIn">
+          <div className="mb-5 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5 animate-fadeIn">
             <span className="text-base leading-none mt-0.5">⚠️</span>
             <div className="flex-1 font-medium">{error}</div>
           </div>
@@ -280,10 +276,10 @@ const VerifyEmail = () => {
                 value={digit}
                 onChange={(e) => handleOtpChange(idx, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(idx, e)}
-                className={`w-11 h-13 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-black rounded-xl bg-slate-950/80 border text-slate-100 transition-all focus:outline-none ${
+                className={`w-11 h-13 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-black rounded-xl bg-[#FAF5F0] border text-[#29252A] transition-all focus:outline-none ${
                   digit
-                    ? 'border-teal-500/80 ring-2 ring-teal-500/20 text-teal-300'
-                    : 'border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    ? 'border-[#C65F63] ring-2 ring-[#C65F63]/20 text-[#C65F63]'
+                    : 'border-[#EFE7E0] focus:border-[#C65F63] focus:ring-2 focus:ring-[#C65F63]/20'
                 }`}
               />
             ))}
@@ -291,9 +287,9 @@ const VerifyEmail = () => {
 
           {/* Countdown Timer & Resend Section */}
           <div className="flex items-center justify-between text-xs px-1">
-            <div className="flex items-center gap-1.5 text-slate-400">
-              <HiOutlineClock className={`text-base ${timeLeft < 60 ? 'text-rose-400 animate-pulse' : 'text-teal-400'}`} />
-              <span className={timeLeft < 60 ? 'text-rose-400 font-semibold' : 'text-slate-300'}>
+            <div className="flex items-center gap-1.5 text-[#6B4E71]">
+              <HiOutlineClock className={`text-base ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-[#C65F63]'}`} />
+              <span className={timeLeft < 60 ? 'text-red-500 font-semibold' : 'text-[#6B4E71]'}>
                 {timeLeft > 0 ? `Expires in ${formatTime(timeLeft)}` : 'Code expired'}
               </span>
             </div>
@@ -302,7 +298,7 @@ const VerifyEmail = () => {
               type="button"
               onClick={handleResend}
               disabled={resending || resendCooldown > 0}
-              className="inline-flex items-center gap-1 text-teal-400 hover:text-teal-300 disabled:text-slate-600 disabled:cursor-not-allowed transition-colors font-medium"
+              className="inline-flex items-center gap-1 text-[#C65F63] hover:text-[#b25155] disabled:text-[#6B4E71]/40 disabled:cursor-not-allowed transition-colors font-medium"
             >
               <HiOutlineRefresh className={`text-sm ${resending ? 'animate-spin' : ''}`} />
               <span>
@@ -319,7 +315,7 @@ const VerifyEmail = () => {
           <button
             type="submit"
             disabled={loading || otp.join('').length !== 6 || timeLeft <= 0}
-            className="w-full bg-gradient-to-r from-blue-600 via-blue-500 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-blue-600/25 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm flex items-center justify-center gap-2"
+            className="w-full bg-[#C65F63] hover:bg-[#b25155] text-white font-bold py-3 px-4 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-[#C65F63]/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
@@ -335,9 +331,9 @@ const VerifyEmail = () => {
           </button>
         </form>
 
-        <p className="mt-7 text-center text-xs text-slate-400">
+        <p className="mt-7 text-center text-xs text-[#6B4E71]">
           Already activated?{' '}
-          <Link to="/login" className="text-teal-400 font-semibold hover:text-teal-300 transition-colors">
+          <Link to="/login" className="text-[#C65F63] font-semibold hover:underline transition-colors">
             Sign In
           </Link>
         </p>

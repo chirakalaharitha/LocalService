@@ -70,30 +70,38 @@ export const NotificationProvider = ({ children }) => {
     }
   }, [user, fetchNotifications, fetchUnreadCount]);
 
-  // Real-time socket delivery listener with duplicate suppression
+  // Real-time socket delivery listener with strict duplicate suppression
   useEffect(() => {
     if (!socket || !user) return;
+
+    const seenNotifIds = new Set();
 
     const handleIncomingNotification = (payload) => {
       // Handle both { notification: {...} } and direct {...} payloads
       const notif = payload?.notification || payload;
       if (!notif || !notif._id) return;
+      const notifId = notif._id.toString();
 
-      // Duplicate prevention: check if this notification is already in state
+      // Strict duplicate suppression across multiple socket event aliases
+      if (seenNotifIds.has(notifId)) return;
+      seenNotifIds.add(notifId);
+      setTimeout(() => seenNotifIds.delete(notifId), 60000);
+
+      // Add to list if not already present
       setNotifications(prev => {
-        const exists = prev.some(item => item._id.toString() === notif._id.toString());
+        const exists = prev.some(item => item._id.toString() === notifId);
         if (exists) {
           return prev;
         }
         return [notif, ...prev];
       });
 
-      // Increment unread count if notification is unread
+      // Increment unread count once if notification is unread
       if (!notif.isRead) {
         setUnreadCount(prev => prev + 1);
       }
 
-      // Show toast alert
+      // Show single toast alert
       toast.info(`🔔 ${notif.title}: ${notif.message}`, {
         position: 'top-right',
         autoClose: 5000,
@@ -111,6 +119,7 @@ export const NotificationProvider = ({ children }) => {
     return () => {
       socket.off('notification:new', handleIncomingNotification);
       socket.off('newNotification', handleIncomingNotification);
+      seenNotifIds.clear();
     };
   }, [socket, user]);
 
@@ -150,6 +159,48 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
+  // Delete single notification
+  const deleteNotification = async (id) => {
+    if (!id) return false;
+    try {
+      const targetNotif = notifications.find(n => n._id === id);
+      await API.delete(`/notifications/${id}`);
+      setNotifications(prev => prev.filter(n => n._id !== id));
+      if (targetNotif && !targetNotif.isRead) {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+      toast.success('Notification deleted', {
+        position: 'top-right',
+        autoClose: 3000
+      });
+      fetchUnreadCount();
+      return true;
+    } catch (err) {
+      console.error('[NotificationContext] Error deleting notification:', err);
+      toast.error('Failed to delete notification');
+      return false;
+    }
+  };
+
+  // Clear all notifications
+  const clearAllNotifications = async () => {
+    try {
+      await API.delete('/notifications');
+      setNotifications([]);
+      setUnreadCount(0);
+      toast.success('All notifications cleared', {
+        position: 'top-right',
+        autoClose: 3000
+      });
+      fetchUnreadCount();
+      return true;
+    } catch (err) {
+      console.error('[NotificationContext] Error clearing all notifications:', err);
+      toast.error('Failed to clear notifications');
+      return false;
+    }
+  };
+
   return (
     <NotificationContext.Provider
       value={{
@@ -159,6 +210,8 @@ export const NotificationProvider = ({ children }) => {
         pagination,
         markRead,
         markAllRead,
+        deleteNotification,
+        clearAllNotifications,
         fetchNotifications,
         fetchUnreadCount
       }}

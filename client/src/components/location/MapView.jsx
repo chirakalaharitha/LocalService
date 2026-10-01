@@ -12,7 +12,7 @@ L.Icon.Default.mergeOptions({
 });
 
 // Custom pin icon with high visibility
-const createPinIcon = (color = '#2563eb') => {
+const createPinIcon = (color = '#C65F63') => {
   return L.divIcon({
     className: 'localfix-custom-pin',
     html: `
@@ -24,7 +24,7 @@ const createPinIcon = (color = '#2563eb') => {
           border: 2.5px solid #ffffff;
           border-radius: 50% 50% 50% 0;
           transform: rotate(-45deg);
-          box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+          box-shadow: 0 4px 10px rgba(0,0,0,0.25);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -93,7 +93,7 @@ const MapView = ({
   subLabel = '',
   height = '340px',
   zoom = 15,
-  pinColor = '#2563eb'
+  pinColor = '#C65F63'
 }) => {
   // Neutral overview coordinates (center of India) when no coordinates are set yet
   const neutralCenter = useMemo(() => [20.5937, 78.9629], []);
@@ -123,7 +123,7 @@ const MapView = ({
   return (
     <div
       style={{ height }}
-      className="w-full rounded-2xl overflow-hidden border border-slate-700/80 bg-slate-950 relative shadow-inner group"
+      className="w-full rounded-2xl overflow-hidden border border-[#EFE7E0] bg-[#FAF5F0] relative shadow-sm group"
     >
       <MapContainer
         center={initialCenter}
@@ -148,17 +148,17 @@ const MapView = ({
               eventHandlers={eventHandlers}
             >
               <Popup autoPan={false}>
-                <div className="p-1 text-slate-900 text-xs">
-                  <div className="font-bold text-sm text-blue-900 flex items-center gap-1">
-                    <span>📍</span>
+                <div className="p-1 text-[#29252A] text-xs">
+                  <div className="font-bold text-sm text-[#402A40] flex items-center gap-1">
+                    <span className="text-[#C65F63]">📍</span>
                     <span>{label}</span>
                   </div>
-                  {subLabel && <div className="text-[11px] text-slate-600 mt-0.5">{subLabel}</div>}
-                  <div className="text-[10px] text-slate-500 font-mono mt-1 border-t border-slate-200 pt-1">
+                  {subLabel && <div className="text-[11px] text-[#6B4E71] mt-0.5">{subLabel}</div>}
+                  <div className="text-[10px] text-[#6B4E71]/70 font-mono mt-1 border-t border-[#EFE7E0] pt-1">
                     {position.lat.toFixed(6)}, {position.lng.toFixed(6)}
                   </div>
                   {!readOnly && (
-                    <div className="text-[10px] text-blue-600 font-semibold mt-1">
+                    <div className="text-[10px] text-[#C65F63] font-semibold mt-1">
                       Drag marker to fine-tune location
                     </div>
                   )}
@@ -175,8 +175,8 @@ const MapView = ({
       {/* Interactive Helper Overlay Badges */}
       {!readOnly && (
         <div className="absolute bottom-2.5 left-2.5 z-[1000] pointer-events-none">
-          <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-slate-200 text-[11px] font-medium px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+          <div className="bg-white/95 backdrop-blur-md border border-[#EFE7E0] text-[#29252A] text-[11px] font-medium px-3 py-1.5 rounded-xl shadow-md flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#C65F63] animate-pulse" />
             <span>
               {position
                 ? 'Click anywhere or drag marker to adjust location'
@@ -189,8 +189,8 @@ const MapView = ({
       {/* Read-only Badge for Request Details */}
       {readOnly && (
         <div className="absolute top-2.5 right-2.5 z-[1000] pointer-events-none">
-          <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-teal-300 text-[11px] font-semibold px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-1.5">
-            <span>📍</span>
+          <div className="bg-white/95 backdrop-blur-md border border-[#EFE7E0] text-[#6B4E71] text-[11px] font-semibold px-3 py-1.5 rounded-xl shadow-md flex items-center gap-1.5">
+            <span className="text-[#C65F63]">📍</span>
             <span>Reported Incident Spot</span>
           </div>
         </div>

@@ -5,7 +5,9 @@ const {
   getNotifications,
   getUnreadCount,
   markAsRead,
-  markAllAsRead
+  markAllAsRead,
+  deleteNotification,
+  clearAllNotifications
 } = require('../controllers/notificationController');
 
 // All notification endpoints require JWT authentication
@@ -20,5 +22,10 @@ router.put('/read-all', markAllAsRead);
 
 router.patch('/:id/read', markAsRead);
 router.put('/:id/read', markAsRead);
+
+// Delete endpoints (single notification and clear all)
+router.delete('/clear-all', clearAllNotifications);
+router.delete('/', clearAllNotifications);
+router.delete('/:id', deleteNotification);
 
 module.exports = router;

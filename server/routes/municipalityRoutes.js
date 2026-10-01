@@ -1,43 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const Municipality = require('../models/Municipality');
+const municipalityController = require('../controllers/municipalityController');
 
-// @desc    Get all active municipalities
-// @route   GET /api/municipalities
-// @access  Public
-router.get('/', async (req, res, next) => {
-  try {
-    const municipalities = await Municipality.find({ isActive: true })
-      .select('name code city state country pincodes wards contactPhone contactEmail')
-      .sort({ name: 1 });
+// Location resolution endpoints (support both POST and GET)
+router.post('/resolve-location', municipalityController.resolveLocation);
+router.get('/resolve-location', municipalityController.resolveLocation);
 
-    res.status(200).json({
-      success: true,
-      count: municipalities.length,
-      municipalities
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+// Proximity and query endpoints
+router.get('/nearby', municipalityController.getNearby);
+router.get('/lookup-pincode/:pincode', municipalityController.lookupPincode);
+router.get('/by-pincode/:pincode', municipalityController.getByPincode);
+router.get('/by-city/:city', municipalityController.getByCity);
 
-// @desc    Get municipality by ID
-// @route   GET /api/municipalities/:id
-// @access  Public
-router.get('/:id', async (req, res, next) => {
-  try {
-    const municipality = await Municipality.findById(req.params.id);
-    if (!municipality) {
-      return res.status(404).json({ success: false, message: 'Municipality not found' });
-    }
-
-    res.status(200).json({
-      success: true,
-      municipality
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+// Standard list and detail endpoints
+router.get('/', municipalityController.getAllMunicipalities);
+router.get('/:id', municipalityController.getMunicipalityById);
 
 module.exports = router;

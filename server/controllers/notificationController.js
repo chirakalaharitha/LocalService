@@ -137,9 +137,64 @@ const markAllAsRead = async (req, res, next) => {
   }
 };
 
+// @desc    Delete single notification (strictly user ownership protected)
+// @route   DELETE /api/notifications/:id
+// @access  Private
+const deleteNotification = async (req, res, next) => {
+  try {
+    const notification = await Notification.findOne({
+      _id: req.params.id,
+      $or: [
+        { recipient: req.user._id },
+        { user: req.user._id }
+      ]
+    });
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Notification not found or access unauthorized'
+      });
+    }
+
+    await notification.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: 'Notification deleted'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Clear all notifications belonging strictly to the authenticated user
+// @route   DELETE /api/notifications (and /clear-all)
+// @access  Private
+const clearAllNotifications = async (req, res, next) => {
+  try {
+    const result = await Notification.deleteMany({
+      $or: [
+        { recipient: req.user._id },
+        { user: req.user._id }
+      ]
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'All notifications cleared',
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getNotifications,
   getUnreadCount,
   markAsRead,
-  markAllAsRead
+  markAllAsRead,
+  deleteNotification,
+  clearAllNotifications
 };

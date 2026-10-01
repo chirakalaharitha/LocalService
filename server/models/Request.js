@@ -107,6 +107,12 @@ const requestSchema = new mongoose.Schema(
       type: String,
       default: ''
     },
+    district: {
+      type: String,
+      default: '',
+      trim: true,
+      index: true
+    },
     state: {
       type: String,
       default: ''
@@ -114,6 +120,11 @@ const requestSchema = new mongoose.Schema(
     pincode: {
       type: String,
       default: ''
+    },
+    municipalitySnapshot: {
+      name: { type: String, default: '' },
+      district: { type: String, default: '' },
+      state: { type: String, default: 'Andhra Pradesh' }
     },
     images: [{
       type: String
@@ -162,6 +173,14 @@ const requestSchema = new mongoose.Schema(
     resolvedAt: {
       type: Date
     },
+    resolutionEmailSent: {
+      type: Boolean,
+      default: false
+    },
+    assignmentEmailSent: {
+      type: Boolean,
+      default: false
+    },
     citizenVerification: {
       verified: {
         type: Boolean,
@@ -209,6 +228,8 @@ const requestSchema = new mongoose.Schema(
 
 // 2dsphere index for geographic calculations
 requestSchema.index({ location: '2dsphere' });
+requestSchema.index({ municipality: 1, status: 1 });
+requestSchema.index({ pincode: 1 });
 
 module.exports = mongoose.model('Request', requestSchema);
 

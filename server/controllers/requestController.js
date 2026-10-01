@@ -6,6 +6,7 @@ const ActivityLog = require('../models/ActivityLog');
 const Department = require('../models/Department');
 const Municipality = require('../models/Municipality');
 const User = require('../models/User');
+const municipalityService = require('../services/municipalityService');
 const NOTIFICATION_TYPES = require('../constants/notificationTypes');
 const { createNotification } = require('../services/notificationService');
 const {
@@ -36,7 +37,21 @@ const generateRequestId = async () => {
 // @access  Private (CITIZEN, ADMIN)
 const createRequest = async (req, res, next) => {
   try {
-    const { title, description, category, priority: citizenPriority, address, latitude, longitude, city, state, pincode } = req.body;
+    const {
+      title,
+      description,
+      category,
+      priority: citizenPriority,
+      address,
+      latitude,
+      longitude,
+      city,
+      district,
+      state,
+      pincode,
+      municipality: inputMunicipality,
+      municipalityId
+    } = req.body;
 
     // Backend Input Validation
     if (!title || typeof title !== 'string' || title.trim().length < 5) {
@@ -115,28 +130,46 @@ const createRequest = async (req, res, next) => {
     // Map category to department
     const deptObj = await Department.findOne({ code: normalizedCategory });
 
-    // Determine Municipality Jurisdiction dynamically
-    let reqMunicipality = null;
-    if (req.body.municipality || req.body.municipalityId) {
-      reqMunicipality = req.body.municipality || req.body.municipalityId;
-    } else if (city) {
-      const matchedMun = await Municipality.findOne({
-        $or: [
-          { city: { $regex: new RegExp(`^${city.trim()}$`, 'i') } },
-          { name: { $regex: new RegExp(city.trim(), 'i') } },
-          { pincodes: pincode ? pincode.trim() : null }
-        ],
-        isActive: true
+    // Determine Municipality Jurisdiction strictly based on physical issue location
+    let resolvedMuni = null;
+    let resolutionDetails = null;
+
+    const requestedMuniId = inputMunicipality || municipalityId;
+    if (requestedMuniId) {
+      resolvedMuni = await Municipality.findOne({ _id: requestedMuniId, isActive: true });
+    }
+
+    if (!resolvedMuni) {
+      resolutionDetails = await municipalityService.resolveMunicipalityFromLocation({
+        latitude: !isNaN(lat) ? lat : undefined,
+        longitude: !isNaN(lng) ? lng : undefined,
+        pincode,
+        city,
+        district
       });
-      if (matchedMun) reqMunicipality = matchedMun._id;
+      resolvedMuni = resolutionDetails?.municipality || null;
     }
-    if (!reqMunicipality && req.user.municipality) {
-      reqMunicipality = req.user.municipality;
+
+    if (!resolvedMuni) {
+      resolvedMuni = await Municipality.findOne({ isActive: true });
     }
-    if (!reqMunicipality) {
-      const defaultMun = await Municipality.findOne({ isActive: true });
-      if (defaultMun) reqMunicipality = defaultMun._id;
-    }
+
+    const municipalitySnapshot = resolvedMuni
+      ? {
+          name: resolvedMuni.name,
+          district: resolvedMuni.district,
+          state: resolvedMuni.state || 'Andhra Pradesh'
+        }
+      : {
+          name: '',
+          district: '',
+          state: 'Andhra Pradesh'
+        };
+
+    const finalCity = city || (resolvedMuni ? resolvedMuni.city : '');
+    const finalDistrict = district || (resolvedMuni ? resolvedMuni.district : '');
+    const finalState = state || (resolvedMuni ? resolvedMuni.state : 'Andhra Pradesh');
+    const finalPincode = pincode ? String(pincode).trim() : '';
 
     // Store request in MongoDB - Citizen derived strictly from JWT req.user._id
     const newRequest = await Request.create({
@@ -149,16 +182,18 @@ const createRequest = async (req, res, next) => {
       status: 'PENDING',
       citizen: req.user._id,
       department: deptObj ? deptObj._id : null,
-      municipality: reqMunicipality,
+      municipality: resolvedMuni ? resolvedMuni._id : null,
+      municipalitySnapshot,
       ward: req.body.ward ? req.body.ward.trim() : '',
       location: {
         type: 'Point',
         coordinates: [lng, lat]
       },
       address: address.trim(),
-      city: city || req.user.city || '',
-      state: state || req.user.state || '',
-      pincode: pincode || req.user.pincode || '',
+      city: finalCity,
+      district: finalDistrict,
+      state: finalState,
+      pincode: finalPincode,
       images,
       slaDeadline
     });
@@ -249,7 +284,8 @@ const createRequest = async (req, res, next) => {
 
     const populatedReq = await Request.findById(newRequest._id)
       .populate('citizen', 'name email phone')
-      .populate('department', 'name code');
+      .populate('department', 'name code')
+      .populate('municipality', 'name code city district state');
 
     res.status(201).json({
       success: true,
@@ -266,10 +302,18 @@ const createRequest = async (req, res, next) => {
 // @access  Private (CITIZEN)
 const getMyRequests = async (req, res, next) => {
   try {
-    const requests = await Request.find({ citizen: req.user._id })
+    const { municipality, status, category } = req.query;
+    const query = { citizen: req.user._id };
+
+    if (municipality) query.municipality = municipality;
+    if (status) query.status = status;
+    if (category) query.category = category.toUpperCase();
+
+    const requests = await Request.find(query)
       .populate('citizen', 'name email phone')
       .populate('assignedStaff', 'name email phone')
       .populate('department', 'name code')
+      .populate('municipality', 'name code city district state')
       .sort({ createdAt: -1 });
 
     const requestsWithSla = requests.map(r => {
@@ -340,6 +384,8 @@ const getRequests = async (req, res, next) => {
       status,
       priority,
       department,
+      municipality,
+      district,
       startDate,
       endDate,
       sortBy = 'createdAt',
@@ -361,6 +407,8 @@ const getRequests = async (req, res, next) => {
       query.municipality = req.user.municipality;
     }
 
+    if (municipality && !query.municipality) query.municipality = municipality;
+    if (district) query.district = new RegExp(district, 'i');
     if (category) query.category = category.toUpperCase();
     if (status) query.status = status;
     if (priority) query.priority = priority.toUpperCase();
@@ -373,11 +421,36 @@ const getRequests = async (req, res, next) => {
     }
 
     if (search) {
+      const matchingCitizens = await User.find({
+        role: 'CITIZEN',
+        name: { $regex: search, $options: 'i' }
+      }).select('_id');
+      const citizenIds = matchingCitizens.map(c => c._id);
+
       query.$or = [
         { title: { $regex: search, $options: 'i' } },
         { requestId: { $regex: search, $options: 'i' } },
-        { address: { $regex: search, $options: 'i' } }
+        { address: { $regex: search, $options: 'i' } },
+        { citizen: { $in: citizenIds } }
       ];
+    }
+
+    // Filter by Assigned / Unassigned
+    const assignedFilter = req.query.assignedStatus || req.query.assigned;
+    if (assignedFilter) {
+      const normAssigned = assignedFilter.toString().toLowerCase();
+      if (normAssigned === 'assigned' || normAssigned === 'true') {
+        const assignedCondition = [{ assignedStaff: { $ne: null } }, { assignedTo: { $ne: null } }];
+        if (query.$or) {
+          query.$and = [{ $or: query.$or }, { $or: assignedCondition }];
+          delete query.$or;
+        } else {
+          query.$or = assignedCondition;
+        }
+      } else if (normAssigned === 'unassigned' || normAssigned === 'false') {
+        query.assignedStaff = null;
+        query.assignedTo = null;
+      }
     }
 
     const sortOptions = {};
@@ -388,6 +461,7 @@ const getRequests = async (req, res, next) => {
     const requests = await Request.find(query)
       .populate('citizen', 'name email phone')
       .populate('assignedStaff', 'name email phone')
+      .populate('assignedTo', 'name email phone')
       .populate('department', 'name code')
       .populate('municipality', 'name code city state country')
       .sort(sortOptions)
@@ -504,7 +578,7 @@ const getRequestById = async (req, res, next) => {
       .populate('citizen', 'name email phone profileImage')
       .populate('assignedStaff', 'name email phone profileImage')
       .populate('department', 'name code description')
-      .populate('municipality', 'name code city state country wards');
+      .populate('municipality', 'name code city district state country wards');
 
     if (!request) {
       return res.status(404).json({ success: false, message: 'Request not found' });

@@ -23,6 +23,11 @@ const departmentSchema = new mongoose.Schema(
       type: String,
       default: 'HiOfficeBuilding'
     },
+    category: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     municipality: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Municipality'

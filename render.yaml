@@ -1,4 +1,5 @@
 # Render Blueprint Specification for LocalFix Backend API
+# Pipeline: GitHub (origin/main) -> Render (Auto Deploy) & Vercel (Auto Deploy)
 # Documentation: https://render.com/docs/blueprint-spec
 
 services:

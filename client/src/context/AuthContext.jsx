@@ -77,8 +77,23 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
+  const updateUser = (updatedFieldsOrUser) => {
+    setUser(prev => {
+      if (!prev) return null;
+      const nextUser = typeof updatedFieldsOrUser === 'function'
+        ? updatedFieldsOrUser(prev)
+        : { ...prev, ...updatedFieldsOrUser };
+      try {
+        localStorage.setItem('localfix_user', JSON.stringify(nextUser));
+      } catch (err) {
+        console.error('Failed to sync user to localStorage:', err);
+      }
+      return nextUser;
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateProfile }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateProfile, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

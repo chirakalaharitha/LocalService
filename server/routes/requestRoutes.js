@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const upload = require('../middleware/uploadMiddleware');
 const { authenticateUser } = require('../middleware/authMiddleware');
+const { authorizeRoles } = require('../middleware/roleMiddleware');
 const {
   createRequest,
   getMyRequests,
@@ -14,7 +15,12 @@ const {
   verifyResolution,
   reopenRequest
 } = require('../controllers/requestController');
+const { assignStaff, transferRequest } = require('../controllers/adminController');
 const { addComment } = require('../controllers/commentController');
+
+router.post('/:id/assign', authenticateUser, authorizeRoles('ADMIN'), assignStaff);
+router.post('/:id/transfer', authenticateUser, authorizeRoles('ADMIN'), transferRequest);
+router.post('/:id/transfer-jurisdiction', authenticateUser, authorizeRoles('ADMIN'), transferRequest);
 
 router.get('/public', getPublicIssues);
 router.get('/nearby', authenticateUser, getNearbyRequests);

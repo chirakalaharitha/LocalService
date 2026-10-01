@@ -155,13 +155,15 @@ const ReportsPage = () => {
     <div className="space-y-6">
       
       {/* Header Banner */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+      <div className="bg-white border border-[#EFE7E0] p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            <HiOutlineDocumentDownload className="text-blue-400 text-3xl" />
+          <h1 className="text-2xl font-bold text-[#29252A] tracking-tight flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-[#FDECEF] text-[#C65F63] flex items-center justify-center">
+              <HiOutlineDocumentDownload className="text-xl" />
+            </div>
             <span>Executive Reports & Data Export Center</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-[#6B4E71] mt-1">
             Generate audited, filter-aware PDF and Excel (.xlsx) reports directly from live municipal database records.
           </p>
         </div>
@@ -169,17 +171,17 @@ const ReportsPage = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportExcel}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 text-xs font-semibold shadow transition"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold shadow-sm transition"
           >
-            <HiOutlineDocumentDownload className="text-lg" />
+            <HiOutlineDocumentDownload className="text-base" />
             <span>Export Excel (.xlsx)</span>
           </button>
 
           <button
             onClick={handleExportPDF}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow transition"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#C65F63] hover:bg-[#b25155] text-white text-xs font-semibold shadow-sm transition"
           >
-            <HiOutlineDocumentDownload className="text-lg" />
+            <HiOutlineDocumentDownload className="text-base" />
             <span>Export PDF (.pdf)</span>
           </button>
         </div>
@@ -196,31 +198,31 @@ const ReportsPage = () => {
               onClick={() => setActiveTab(tab.id)}
               className={`flex flex-col items-start p-3 rounded-2xl border text-left transition ${
                 isActive
-                  ? 'bg-blue-600/10 border-blue-500/50 text-white shadow-lg'
-                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                  ? 'bg-[#FDECEF] border-[#C65F63] text-[#C65F63] shadow-sm font-semibold'
+                  : 'bg-white border-[#EFE7E0] text-[#6B4E71] hover:bg-[#FAF5F0] hover:text-[#29252A]'
               }`}
             >
               <div className="flex items-center gap-1.5 font-bold text-xs">
-                <Icon className={isActive ? 'text-blue-400' : 'text-slate-500'} />
+                <Icon className={isActive ? 'text-[#C65F63]' : 'text-[#6B4E71]'} />
                 <span>{tab.label}</span>
               </div>
-              <span className="text-[10px] text-slate-500 mt-1 line-clamp-1">{tab.desc}</span>
+              <span className="text-[10px] text-[#6B4E71]/70 mt-1 line-clamp-1">{tab.desc}</span>
             </button>
           );
         })}
       </div>
 
       {/* Filter Toolbar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+      <div className="bg-white border border-[#EFE7E0] rounded-2xl p-4 space-y-3 shadow-sm">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wider">
-            <HiOutlineFilter className="text-blue-400 text-base" />
+          <div className="flex items-center gap-2 text-xs font-bold text-[#29252A] uppercase tracking-wider">
+            <HiOutlineFilter className="text-[#C65F63] text-base" />
             <span>Report Filter Parameters</span>
           </div>
 
           <button
             onClick={handleResetFilters}
-            className="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition"
+            className="text-xs text-[#6B4E71] hover:text-[#C65F63] flex items-center gap-1 transition"
           >
             <HiOutlineRefresh className="text-xs" />
             <span>Reset Filters</span>
@@ -230,13 +232,13 @@ const ReportsPage = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
           {activeTab === 'REQUESTS' && (
             <div className="relative">
-              <HiOutlineSearch className="absolute left-3 top-3 text-slate-500 text-sm" />
+              <HiOutlineSearch className="absolute left-3 top-3 text-[#6B4E71] text-sm" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search keyword / ID..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 pl-9 pr-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 pl-9 pr-3 text-xs text-[#29252A] placeholder-[#6B4E71]/60 focus:outline-none focus:border-[#C65F63]"
               />
             </div>
           )}
@@ -244,7 +246,7 @@ const ReportsPage = () => {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+            className="bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
           >
             <option value="">All Categories</option>
             <option value="WATER">Water Supply</option>
@@ -260,7 +262,7 @@ const ReportsPage = () => {
           <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+            className="bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
           >
             <option value="">All Departments</option>
             {departments.map((d) => (
@@ -271,7 +273,7 @@ const ReportsPage = () => {
           <select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+            className="bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
           >
             <option value="">All Priorities</option>
             <option value="LOW">Low</option>
@@ -283,7 +285,7 @@ const ReportsPage = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+            className="bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
           >
             <option value="">All Statuses</option>
             <option value="PENDING">Pending</option>
@@ -299,7 +301,7 @@ const ReportsPage = () => {
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             title="Start Date"
-            className="bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+            className="bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
           />
 
           <input
@@ -307,28 +309,28 @@ const ReportsPage = () => {
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
             title="End Date"
-            className="bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+            className="bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
           />
         </div>
       </div>
 
       {/* Live Data Table Preview */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+      <div className="bg-white border border-[#EFE7E0] rounded-2xl overflow-hidden shadow-sm">
+        <div className="p-4 border-b border-[#EFE7E0] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-white">Live Data Preview</span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold">
+            <span className="text-sm font-bold text-[#29252A]">Live Data Preview</span>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#FAF5F0] text-[#6B4E71] font-semibold border border-[#EFE7E0]">
               {activeTab === 'REQUESTS' ? `${requestsData.length} records` : 'Aggregated View'}
             </span>
           </div>
-          {loading && <span className="text-xs text-blue-400 animate-pulse font-medium">Fetching real records...</span>}
+          {loading && <span className="text-xs text-[#C65F63] animate-pulse font-medium">Fetching real records...</span>}
         </div>
 
         <div className="overflow-x-auto">
           {/* TAB 1: Service Requests */}
           {activeTab === 'REQUESTS' && (
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
+            <table className="w-full text-left text-xs text-[#29252A]">
+              <thead className="bg-[#FAF5F0] text-[11px] uppercase tracking-wider text-[#6B4E71] font-semibold">
                 <tr>
                   <th className="p-3.5">Request ID</th>
                   <th className="p-3.5">Title</th>
@@ -342,40 +344,40 @@ const ReportsPage = () => {
                   <th className="p-3.5">Resolved</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-[#EFE7E0]">
                 {requestsData.length === 0 ? (
                   <tr>
-                    <td colSpan="10" className="text-center py-12 text-slate-500">
+                    <td colSpan="10" className="text-center py-12 text-[#6B4E71]/70">
                       No service requests match the applied filter criteria.
                     </td>
                   </tr>
                 ) : (
                   requestsData.map((r) => (
-                    <tr key={r._id} className="hover:bg-slate-800/40 transition">
-                      <td className="p-3.5 font-bold text-white">{r.requestId}</td>
-                      <td className="p-3.5 font-medium max-w-[180px] truncate text-slate-200">{r.title}</td>
-                      <td className="p-3.5">{r.category}</td>
+                    <tr key={r._id} className="hover:bg-[#FAF5F0]/60 transition">
+                      <td className="p-3.5 font-bold text-[#C65F63]">{r.requestId}</td>
+                      <td className="p-3.5 font-medium max-w-[180px] truncate text-[#29252A]">{r.title}</td>
+                      <td className="p-3.5 text-[#6B4E71]">{r.category}</td>
                       <td className="p-3.5">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          r.priority === 'CRITICAL' ? 'bg-rose-500/20 text-rose-400' :
-                          r.priority === 'HIGH' ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-800 text-slate-300'
+                          r.priority === 'CRITICAL' ? 'bg-red-50 text-red-600 border border-red-200' :
+                          r.priority === 'HIGH' ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'bg-[#FAF5F0] text-[#6B4E71] border border-[#EFE7E0]'
                         }`}>
                           {r.priority}
                         </span>
                       </td>
                       <td className="p-3.5">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                          r.status === 'RESOLVED' || r.status === 'CLOSED' ? 'bg-emerald-500/20 text-emerald-400' :
-                          r.status === 'IN_PROGRESS' ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-800 text-slate-300'
+                          r.status === 'RESOLVED' || r.status === 'CLOSED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                          r.status === 'IN_PROGRESS' ? 'bg-[#FDECEF] text-[#C65F63] border border-[#C65F63]/30' : 'bg-[#FAF5F0] text-[#6B4E71] border border-[#EFE7E0]'
                         }`}>
                           {r.status}
                         </span>
                       </td>
-                      <td className="p-3.5">{r.citizenName}</td>
-                      <td className="p-3.5">{r.departmentName}</td>
-                      <td className="p-3.5">{r.staffName}</td>
-                      <td className="p-3.5">{new Date(r.createdAt).toLocaleDateString()}</td>
-                      <td className="p-3.5">{r.resolvedDate ? new Date(r.resolvedDate).toLocaleDateString() : '—'}</td>
+                      <td className="p-3.5 text-[#29252A]">{r.citizenName}</td>
+                      <td className="p-3.5 text-[#6B4E71]">{r.departmentName}</td>
+                      <td className="p-3.5 text-[#6B4E71]">{r.staffName}</td>
+                      <td className="p-3.5 text-[#6B4E71]">{new Date(r.createdAt).toLocaleDateString()}</td>
+                      <td className="p-3.5 text-[#6B4E71]">{r.resolvedDate ? new Date(r.resolvedDate).toLocaleDateString() : '—'}</td>
                     </tr>
                   ))
                 )}
@@ -385,26 +387,26 @@ const ReportsPage = () => {
 
           {/* TAB 2: Status Summary */}
           {activeTab === 'STATUS' && (
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
+            <table className="w-full text-left text-xs text-[#29252A]">
+              <thead className="bg-[#FAF5F0] text-[11px] uppercase tracking-wider text-[#6B4E71] font-semibold">
                 <tr>
                   <th className="p-3.5">Status</th>
                   <th className="p-3.5">Total Requests</th>
                   <th className="p-3.5">Percentage of Workload</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-[#EFE7E0]">
                 {summaryData?.statusReport?.length ? (
                   summaryData.statusReport.map((s, idx) => (
-                    <tr key={idx} className="hover:bg-slate-800/40 transition">
-                      <td className="p-3.5 font-bold text-white">{s.status}</td>
-                      <td className="p-3.5 text-blue-400 font-semibold text-sm">{s.count}</td>
-                      <td className="p-3.5">{s.percentage}%</td>
+                    <tr key={idx} className="hover:bg-[#FAF5F0]/60 transition">
+                      <td className="p-3.5 font-bold text-[#29252A]">{s.status}</td>
+                      <td className="p-3.5 text-[#C65F63] font-semibold text-sm">{s.count}</td>
+                      <td className="p-3.5 text-[#6B4E71]">{s.percentage}%</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="3" className="text-center py-8 text-slate-500">No status data available.</td>
+                    <td colSpan="3" className="text-center py-8 text-[#6B4E71]/70">No status data available.</td>
                   </tr>
                 )}
               </tbody>
@@ -413,8 +415,8 @@ const ReportsPage = () => {
 
           {/* TAB 3: Category Performance */}
           {activeTab === 'CATEGORY' && (
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
+            <table className="w-full text-left text-xs text-[#29252A]">
+              <thead className="bg-[#FAF5F0] text-[11px] uppercase tracking-wider text-[#6B4E71] font-semibold">
                 <tr>
                   <th className="p-3.5">Civic Category</th>
                   <th className="p-3.5">Total Requests</th>
@@ -423,20 +425,20 @@ const ReportsPage = () => {
                   <th className="p-3.5">Avg Turnaround (Hours)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-[#EFE7E0]">
                 {summaryData?.categoryReport?.length ? (
                   summaryData.categoryReport.map((c, idx) => (
-                    <tr key={idx} className="hover:bg-slate-800/40 transition">
-                      <td className="p-3.5 font-bold text-white">{c.category}</td>
-                      <td className="p-3.5 font-semibold text-white">{c.total}</td>
-                      <td className="p-3.5 text-emerald-400 font-semibold">{c.resolved}</td>
-                      <td className="p-3.5 text-amber-400">{c.pending}</td>
-                      <td className="p-3.5 font-semibold">{c.avgResolutionHours}h</td>
+                    <tr key={idx} className="hover:bg-[#FAF5F0]/60 transition">
+                      <td className="p-3.5 font-bold text-[#29252A]">{c.category}</td>
+                      <td className="p-3.5 font-semibold text-[#29252A]">{c.total}</td>
+                      <td className="p-3.5 text-emerald-600 font-semibold">{c.resolved}</td>
+                      <td className="p-3.5 text-amber-600">{c.pending}</td>
+                      <td className="p-3.5 font-semibold text-[#6B4E71]">{c.avgResolutionHours}h</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5" className="text-center py-8 text-slate-500">No category data available.</td>
+                    <td colSpan="5" className="text-center py-8 text-[#6B4E71]/70">No category data available.</td>
                   </tr>
                 )}
               </tbody>
@@ -445,8 +447,8 @@ const ReportsPage = () => {
 
           {/* TAB 4: Department Operations */}
           {activeTab === 'DEPARTMENT' && (
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
+            <table className="w-full text-left text-xs text-[#29252A]">
+              <thead className="bg-[#FAF5F0] text-[11px] uppercase tracking-wider text-[#6B4E71] font-semibold">
                 <tr>
                   <th className="p-3.5">Department</th>
                   <th className="p-3.5">Code</th>
@@ -457,22 +459,22 @@ const ReportsPage = () => {
                   <th className="p-3.5">Resolution Rate</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-[#EFE7E0]">
                 {summaryData?.departmentReport?.length ? (
                   summaryData.departmentReport.map((d, idx) => (
-                    <tr key={idx} className="hover:bg-slate-800/40 transition">
-                      <td className="p-3.5 font-bold text-white">{d.name}</td>
-                      <td className="p-3.5 font-mono text-slate-400">{d.code}</td>
-                      <td className="p-3.5 font-semibold text-white">{d.totalRequests}</td>
-                      <td className="p-3.5 text-emerald-400 font-semibold">{d.resolvedRequests}</td>
-                      <td className="p-3.5 text-amber-400">{d.pendingRequests}</td>
-                      <td className="p-3.5 font-semibold text-blue-400">{d.activeStaffCount}</td>
-                      <td className="p-3.5 font-bold text-emerald-400">{d.resolutionRate}%</td>
+                    <tr key={idx} className="hover:bg-[#FAF5F0]/60 transition">
+                      <td className="p-3.5 font-bold text-[#29252A]">{d.name}</td>
+                      <td className="p-3.5 font-mono text-[#6B4E71]">{d.code}</td>
+                      <td className="p-3.5 font-semibold text-[#29252A]">{d.totalRequests}</td>
+                      <td className="p-3.5 text-emerald-600 font-semibold">{d.resolvedRequests}</td>
+                      <td className="p-3.5 text-amber-600">{d.pendingRequests}</td>
+                      <td className="p-3.5 font-semibold text-[#C65F63]">{d.activeStaffCount}</td>
+                      <td className="p-3.5 font-bold text-emerald-600">{d.resolutionRate}%</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="7" className="text-center py-8 text-slate-500">No department data available.</td>
+                    <td colSpan="7" className="text-center py-8 text-[#6B4E71]/70">No department data available.</td>
                   </tr>
                 )}
               </tbody>
@@ -481,8 +483,8 @@ const ReportsPage = () => {
 
           {/* TAB 5: Staff Performance */}
           {activeTab === 'STAFF' && (
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
+            <table className="w-full text-left text-xs text-[#29252A]">
+              <thead className="bg-[#FAF5F0] text-[11px] uppercase tracking-wider text-[#6B4E71] font-semibold">
                 <tr>
                   <th className="p-3.5">Staff Officer</th>
                   <th className="p-3.5">Email</th>
@@ -494,29 +496,29 @@ const ReportsPage = () => {
                   <th className="p-3.5">Rating</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-[#EFE7E0]">
                 {summaryData?.staffReport?.length ? (
                   summaryData.staffReport.map((s, idx) => (
-                    <tr key={idx} className="hover:bg-slate-800/40 transition">
-                      <td className="p-3.5 font-bold text-white">{s.name}</td>
-                      <td className="p-3.5 text-slate-400">{s.email}</td>
-                      <td className="p-3.5">{s.department}</td>
-                      <td className="p-3.5 font-semibold text-white">{s.totalAssigned}</td>
-                      <td className="p-3.5 text-emerald-400 font-semibold">{s.completedRequests}</td>
-                      <td className="p-3.5 text-amber-400">{s.pendingRequests}</td>
-                      <td className="p-3.5 font-semibold">{s.avgResolutionHours}h</td>
+                    <tr key={idx} className="hover:bg-[#FAF5F0]/60 transition">
+                      <td className="p-3.5 font-bold text-[#29252A]">{s.name}</td>
+                      <td className="p-3.5 text-[#6B4E71]">{s.email}</td>
+                      <td className="p-3.5 text-[#6B4E71]">{s.department}</td>
+                      <td className="p-3.5 font-semibold text-[#29252A]">{s.totalAssigned}</td>
+                      <td className="p-3.5 text-emerald-600 font-semibold">{s.completedRequests}</td>
+                      <td className="p-3.5 text-amber-600">{s.pendingRequests}</td>
+                      <td className="p-3.5 font-semibold text-[#6B4E71]">{s.avgResolutionHours}h</td>
                       <td className="p-3.5">
                         {s.avgRating > 0 ? (
-                          <span className="text-amber-400 font-bold">★ {s.avgRating}/5</span>
+                          <span className="text-amber-500 font-bold">★ {s.avgRating}/5</span>
                         ) : (
-                          <span className="text-slate-500">N/A</span>
+                          <span className="text-[#6B4E71]/60">N/A</span>
                         )}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="8" className="text-center py-8 text-slate-500">No staff performance data available.</td>
+                    <td colSpan="8" className="text-center py-8 text-[#6B4E71]/70">No staff performance data available.</td>
                   </tr>
                 )}
               </tbody>
@@ -525,8 +527,8 @@ const ReportsPage = () => {
 
           {/* TAB 6: Feedback Audit */}
           {activeTab === 'FEEDBACK' && (
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
+            <table className="w-full text-left text-xs text-[#29252A]">
+              <thead className="bg-[#FAF5F0] text-[11px] uppercase tracking-wider text-[#6B4E71] font-semibold">
                 <tr>
                   <th className="p-3.5">Request ID</th>
                   <th className="p-3.5">Title</th>
@@ -538,23 +540,23 @@ const ReportsPage = () => {
                   <th className="p-3.5">Date</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-[#EFE7E0]">
                 {summaryData?.feedbackReport?.length ? (
                   summaryData.feedbackReport.map((f, idx) => (
-                    <tr key={idx} className="hover:bg-slate-800/40 transition">
-                      <td className="p-3.5 font-bold text-white">{f.requestId}</td>
-                      <td className="p-3.5 text-slate-200 max-w-[150px] truncate">{f.title}</td>
-                      <td className="p-3.5">{f.category}</td>
-                      <td className="p-3.5">{f.department}</td>
-                      <td className="p-3.5 font-bold text-amber-400">★ {f.rating}/5</td>
-                      <td className="p-3.5 italic text-slate-300 max-w-[200px] truncate">"{f.comment || '—'}"</td>
-                      <td className="p-3.5">{f.citizenName}</td>
-                      <td className="p-3.5">{new Date(f.createdAt).toLocaleDateString()}</td>
+                    <tr key={idx} className="hover:bg-[#FAF5F0]/60 transition">
+                      <td className="p-3.5 font-bold text-[#C65F63]">{f.requestId}</td>
+                      <td className="p-3.5 text-[#29252A] max-w-[150px] truncate">{f.title}</td>
+                      <td className="p-3.5 text-[#6B4E71]">{f.category}</td>
+                      <td className="p-3.5 text-[#6B4E71]">{f.department}</td>
+                      <td className="p-3.5 font-bold text-amber-500">★ {f.rating}/5</td>
+                      <td className="p-3.5 italic text-[#6B4E71] max-w-[200px] truncate">"{f.comment || '—'}"</td>
+                      <td className="p-3.5 text-[#29252A]">{f.citizenName}</td>
+                      <td className="p-3.5 text-[#6B4E71]">{new Date(f.createdAt).toLocaleDateString()}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="8" className="text-center py-8 text-slate-500">No feedback reviews recorded yet.</td>
+                    <td colSpan="8" className="text-center py-8 text-[#6B4E71]/70">No feedback reviews recorded yet.</td>
                   </tr>
                 )}
               </tbody>
@@ -563,8 +565,8 @@ const ReportsPage = () => {
 
           {/* TAB 7: SLA Compliance */}
           {activeTab === 'SLA' && (
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
+            <table className="w-full text-left text-xs text-[#29252A]">
+              <thead className="bg-[#FAF5F0] text-[11px] uppercase tracking-wider text-[#6B4E71] font-semibold">
                 <tr>
                   <th className="p-3.5">Priority Tier</th>
                   <th className="p-3.5">Total Volume</th>
@@ -574,17 +576,17 @@ const ReportsPage = () => {
                   <th className="p-3.5">Compliance Rate</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-[#EFE7E0]">
                 {summaryData?.slaReport?.length ? (
                   summaryData.slaReport.map((sla, idx) => (
-                    <tr key={idx} className="hover:bg-slate-800/40 transition">
-                      <td className="p-3.5 font-bold text-white">{sla.priority}</td>
-                      <td className="p-3.5 font-semibold text-white">{sla.total}</td>
-                      <td className="p-3.5 text-emerald-400 font-semibold">{sla.met}</td>
-                      <td className="p-3.5 text-rose-400 font-semibold">{sla.breached}</td>
-                      <td className="p-3.5 text-amber-400">{sla.pending}</td>
+                    <tr key={idx} className="hover:bg-[#FAF5F0]/60 transition">
+                      <td className="p-3.5 font-bold text-[#29252A]">{sla.priority}</td>
+                      <td className="p-3.5 font-semibold text-[#29252A]">{sla.total}</td>
+                      <td className="p-3.5 text-emerald-600 font-semibold">{sla.met}</td>
+                      <td className="p-3.5 text-red-600 font-semibold">{sla.breached}</td>
+                      <td className="p-3.5 text-amber-600">{sla.pending}</td>
                       <td className="p-3.5">
-                        <span className={`font-bold ${sla.complianceRate >= 80 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        <span className={`font-bold ${sla.complianceRate >= 80 ? 'text-emerald-600' : 'text-amber-600'}`}>
                           {sla.complianceRate}%
                         </span>
                       </td>
@@ -592,7 +594,7 @@ const ReportsPage = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="6" className="text-center py-8 text-slate-500">No SLA compliance data available.</td>
+                    <td colSpan="6" className="text-center py-8 text-[#6B4E71]/70">No SLA compliance data available.</td>
                   </tr>
                 )}
               </tbody>

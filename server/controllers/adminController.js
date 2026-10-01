@@ -3,7 +3,9 @@ const Request = require('../models/Request');
 const User = require('../models/User');
 const Department = require('../models/Department');
 const Municipality = require('../models/Municipality');
+const MunicipalityTransfer = require('../models/MunicipalityTransfer');
 const RequestHistory = require('../models/RequestHistory');
+const municipalityService = require('../services/municipalityService');
 const Notification = require('../models/Notification');
 const ActivityLog = require('../models/ActivityLog');
 const Feedback = require('../models/Feedback');
@@ -81,6 +83,82 @@ const getDashboardStats = async (req, res, next) => {
       { $group: { _id: '$priority', count: { $sum: 1 } } }
     ]);
 
+    // Real Status breakdown for Status Overview Chart
+    const statusStats = [
+      { name: 'Submitted / Pending', count: pendingRequests, color: '#D49A4A' },
+      { name: 'Assigned', count: assignedRequests, color: '#6B4E71' },
+      { name: 'In Progress', count: inProgressRequests, color: '#402A40' },
+      { name: 'Resolved', count: resolvedRequests, color: '#5C9A72' },
+      { name: 'Pending Verification', count: pendingVerificationRequests, color: '#8E536F' },
+      { name: 'Closed', count: closedRequests, color: '#29252A' },
+      { name: 'Reopened', count: reopenedRequests, color: '#B85450' }
+    ];
+
+    // SLA Overview metrics
+    const totalActive = activeRequests.length;
+    const slaComplianceRate = totalActive > 0
+      ? Math.round(((totalActive - overdueCount) / totalActive) * 100)
+      : 100;
+
+    const slaOverview = {
+      totalActive,
+      overdue: overdueCount,
+      onTime: pendingSlaRequests,
+      complianceRate: slaComplianceRate
+    };
+
+    // Real Recent Requests preview (limited to 6)
+    const recentRequestsRaw = await Request.find(reqScope)
+      .populate('citizen', 'name email phone')
+      .populate('assignedStaff', 'name email phone')
+      .populate('assignedTo', 'name email phone')
+      .populate('department', 'name code')
+      .populate('municipality', 'name code city district')
+      .sort({ createdAt: -1 })
+      .limit(6);
+
+    const recentRequests = recentRequestsRaw.map(r => {
+      const obj = r.toObject();
+      obj.slaStatus = getSlaStatus(r.slaDeadline, r.status, r.priority);
+      return obj;
+    });
+
+    // Real Recent Activity preview (limited to 6)
+    const recentActivity = await ActivityLog.find()
+      .populate('user', 'name role email')
+      .sort({ createdAt: -1 })
+      .limit(6);
+
+    // Real Staff Workload Summary
+    const staffMembers = await User.find(staffScope)
+      .select('name email phone department isActive ward')
+      .populate('department', 'name code')
+      .limit(8);
+
+    const staffWorkload = await Promise.all(
+      staffMembers.map(async (s) => {
+        const activeCount = await Request.countDocuments({
+          $or: [{ assignedStaff: s._id }, { assignedTo: s._id }],
+          status: { $in: ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS'] }
+        });
+        const completedCount = await Request.countDocuments({
+          $or: [{ assignedStaff: s._id }, { assignedTo: s._id }],
+          status: { $in: ['RESOLVED', 'CITIZEN_VERIFIED', 'CLOSED'] }
+        });
+        return {
+          _id: s._id,
+          name: s.name,
+          email: s.email,
+          phone: s.phone,
+          department: s.department?.name || 'General Operations',
+          ward: s.ward || '',
+          isActive: s.isActive,
+          activeCount,
+          completedCount
+        };
+      })
+    );
+
     res.status(200).json({
       success: true,
       stats: {
@@ -90,6 +168,7 @@ const getDashboardStats = async (req, res, next) => {
         activeStaff,
         totalRequests,
         pendingRequests,
+        submittedRequests: pendingRequests,
         assignedRequests,
         inProgressRequests,
         resolvedRequests,
@@ -103,7 +182,12 @@ const getDashboardStats = async (req, res, next) => {
         totalFeedbacks
       },
       categoryStats,
-      priorityStats
+      priorityStats,
+      statusStats,
+      slaOverview,
+      recentRequests,
+      recentActivity,
+      staffWorkload
     });
   } catch (error) {
     next(error);
@@ -198,6 +282,7 @@ const createStaffUser = async (req, res, next) => {
     }
 
     const targetMunicipality = req.user.municipality || req.body.municipality || req.body.municipalityId || null;
+    const finalCategory = (req.body.assignedCategory || req.body.category || deptObj.name || '').trim();
 
     const staffUser = await User.create({
       name: staffName,
@@ -206,6 +291,8 @@ const createStaffUser = async (req, res, next) => {
       password,
       role: 'STAFF',
       department: deptObj._id,
+      assignedCategory: finalCategory,
+      category: finalCategory,
       municipality: targetMunicipality,
       ward: (req.body.ward || '').trim(),
       serviceArea: (req.body.serviceArea || '').trim(),
@@ -237,6 +324,8 @@ const createStaffUser = async (req, res, next) => {
         name: deptObj.name,
         code: deptObj.code
       },
+      assignedCategory: finalCategory,
+      category: finalCategory,
       municipality: targetMunicipality,
       ward: staffUser.ward,
       serviceArea: staffUser.serviceArea,
@@ -340,6 +429,9 @@ const assignStaff = async (req, res, next) => {
     }
 
     const previousStatus = request.status;
+    const previousStaff = request.assignedStaff || request.assignedTo;
+    const previousStaffId = previousStaff ? (previousStaff._id ? previousStaff._id.toString() : previousStaff.toString()) : null;
+
     request.assignedStaff = staffUser._id;
     request.assignedTo = staffUser._id;
     if (departmentId) request.department = departmentId;
@@ -360,6 +452,13 @@ const assignStaff = async (req, res, next) => {
       notes: `Assigned to staff ${staffUser.name} (${staffUser.email}).`
     });
 
+    // Resolve municipality name for assignment details
+    let municipalityName = request.municipalitySnapshot?.name || '';
+    if (!municipalityName && request.municipality) {
+      const mun = await Municipality.findById(request.municipality);
+      if (mun) municipalityName = mun.name || mun.city;
+    }
+
     // Notify Staff via Phase 10 Notification Service (DB + Socket.IO + Email)
     await createNotification({
       recipient: staffUser._id,
@@ -372,6 +471,7 @@ const assignStaff = async (req, res, next) => {
         to: staff.email,
         staffName: staff.name,
         request,
+        municipalityName: municipalityName || request.city || 'Municipal Jurisdiction',
         assignedAt: new Date()
       })
     });
@@ -411,6 +511,22 @@ const assignStaff = async (req, res, next) => {
       citizenId: request.citizen,
       staffId: staffUser._id
     });
+
+    // When reassigning, also notify previous staff so their My Work updates and removes the request immediately
+    if (previousStaffId && previousStaffId !== staffUser._id.toString()) {
+      emitToUser(previousStaffId, 'request:assigned', {
+        requestId: request.requestId,
+        requestMongoId: request._id,
+        reassigned: true,
+        newStaffId: staffUser._id
+      });
+      emitToUser(previousStaffId, 'request:updated', {
+        requestId: request.requestId,
+        requestMongoId: request._id,
+        reassigned: true,
+        newStaffId: staffUser._id
+      });
+    }
 
     emitRequestStatusChanged({
       requestId: request.requestId,
@@ -1178,10 +1294,377 @@ const updateAdminMunicipality = async (req, res, next) => {
   }
 };
 
+// @desc    Get all municipalities for Admin management
+// @route   GET /api/admin/municipalities
+// @access  Private (ADMIN)
+const getAdminMunicipalities = async (req, res, next) => {
+  try {
+    const { search, district, isActive } = req.query;
+    const query = {};
+
+    if (search) {
+      const reg = new RegExp(search, 'i');
+      query.$or = [{ name: reg }, { code: reg }, { city: reg }, { district: reg }];
+    }
+    if (district) query.district = new RegExp(district, 'i');
+    if (isActive !== undefined) query.isActive = isActive === 'true';
+
+    const municipalities = await Municipality.find(query).sort({ name: 1 });
+
+    res.status(200).json({
+      success: true,
+      count: municipalities.length,
+      municipalities
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Create new municipality in master registry
+// @route   POST /api/admin/municipalities
+// @access  Private (ADMIN)
+const createMunicipality = async (req, res, next) => {
+  try {
+    const {
+      name,
+      code,
+      city,
+      district,
+      state = 'Andhra Pradesh',
+      type = 'MUNICIPALITY',
+      latitude,
+      longitude,
+      serviceRadiusKm = 15,
+      pincodes = [],
+      wards = [],
+      contactPhone,
+      contactEmail
+    } = req.body;
+
+    if (!name || !code || !city || !district) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, code, city, and district are required fields'
+      });
+    }
+
+    const cleanLat = latitude ? parseFloat(latitude) : 0;
+    const cleanLng = longitude ? parseFloat(longitude) : 0;
+
+    const municipality = await Municipality.create({
+      name: name.trim(),
+      code: code.trim().toUpperCase(),
+      city: city.trim(),
+      district: district.trim(),
+      state: state.trim(),
+      type,
+      latitude: cleanLat,
+      longitude: cleanLng,
+      location: {
+        type: 'Point',
+        coordinates: [cleanLng, cleanLat]
+      },
+      serviceRadiusKm: serviceRadiusKm ? parseFloat(serviceRadiusKm) : 15,
+      pincodes: Array.isArray(pincodes) ? pincodes : pincodes.split(',').map((p) => p.trim()),
+      wards: Array.isArray(wards) ? wards : [],
+      contactPhone: contactPhone ? contactPhone.trim() : null,
+      contactEmail: contactEmail ? contactEmail.trim() : null,
+      isActive: true
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Municipality registered successfully',
+      municipality
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update municipality details
+// @route   PUT /api/admin/municipalities/:id
+// @access  Private (ADMIN)
+const updateMunicipalityById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    if (updates.latitude !== undefined && updates.longitude !== undefined) {
+      updates.location = {
+        type: 'Point',
+        coordinates: [parseFloat(updates.longitude), parseFloat(updates.latitude)]
+      };
+    }
+
+    const municipality = await Municipality.findByIdAndUpdate(id, updates, {
+      new: true,
+      runValidators: true
+    });
+
+    if (!municipality) {
+      return res.status(404).json({ success: false, message: 'Municipality not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Municipality updated successfully',
+      municipality
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Toggle municipality active status
+// @route   DELETE /api/admin/municipalities/:id
+// @access  Private (ADMIN)
+const toggleMunicipalityStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const municipality = await Municipality.findById(id);
+
+    if (!municipality) {
+      return res.status(404).json({ success: false, message: 'Municipality not found' });
+    }
+
+    municipality.isActive = !municipality.isActive;
+    await municipality.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Municipality ${municipality.isActive ? 'activated' : 'deactivated'} successfully`,
+      municipality
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Transfer request to another municipal jurisdiction
+// @route   POST /api/admin/requests/:id/transfer
+// @access  Private (ADMIN)
+const transferRequest = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { toMunicipalityId, reason } = req.body;
+
+    if (!toMunicipalityId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Destination municipality ID (toMunicipalityId) is required'
+      });
+    }
+
+    const requestDoc = await Request.findById(id);
+    if (!requestDoc) {
+      return res.status(404).json({ success: false, message: 'Service request not found' });
+    }
+
+    const toMunicipality = await Municipality.findOne({ _id: toMunicipalityId, isActive: true });
+    if (!toMunicipality) {
+      return res.status(404).json({ success: false, message: 'Destination municipality not found or inactive' });
+    }
+
+    if (requestDoc.municipality && requestDoc.municipality.toString() === toMunicipality._id.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Request is already in the jurisdiction of this municipality'
+      });
+    }
+
+    // Calculate distance between request coordinates and destination municipality
+    let distanceKm = null;
+    if (requestDoc.location?.coordinates?.length === 2 && toMunicipality.latitude && toMunicipality.longitude) {
+      const [reqLng, reqLat] = requestDoc.location.coordinates;
+      distanceKm = municipalityService.calculateDistanceKm(
+        reqLat,
+        reqLng,
+        toMunicipality.latitude,
+        toMunicipality.longitude
+      );
+    }
+
+    const previousMunicipalityId = requestDoc.municipality;
+    const prevMuniName = requestDoc.municipalitySnapshot?.name || 'Previous Jurisdiction';
+
+    // 1. Create audit transfer record
+    const transferRecord = await MunicipalityTransfer.create({
+      request: requestDoc._id,
+      fromMunicipality: previousMunicipalityId,
+      toMunicipality: toMunicipality._id,
+      distanceKm,
+      status: 'APPROVED',
+      reason: reason || 'Transferred by administrative authority',
+      transferredBy: req.user._id,
+      approvedBy: req.user._id,
+      approvedAt: new Date()
+    });
+
+    // 2. Update Request jurisdiction
+    requestDoc.municipality = toMunicipality._id;
+    requestDoc.municipalitySnapshot = {
+      name: toMunicipality.name,
+      district: toMunicipality.district,
+      state: toMunicipality.state || 'Andhra Pradesh'
+    };
+    if (toMunicipality.district) {
+      requestDoc.district = toMunicipality.district;
+    }
+    // Unassign staff if from old jurisdiction so new authority can assign
+    requestDoc.assignedStaff = null;
+    requestDoc.status = 'UNDER_REVIEW';
+    await requestDoc.save();
+
+    // 3. Create history log
+    await RequestHistory.create({
+      request: requestDoc._id,
+      user: req.user._id,
+      action: 'TRANSFERRED',
+      newStatus: 'UNDER_REVIEW',
+      notes: `Transferred jurisdiction from ${prevMuniName} to ${toMunicipality.name}. Reason: ${reason || 'Administrative transfer'}`
+    });
+
+    // 4. In-App Notification to Citizen
+    if (requestDoc.citizen) {
+      await createNotification({
+        recipient: requestDoc.citizen,
+        type: NOTIFICATION_TYPES.STATUS_UPDATED || 'STATUS_UPDATED',
+        title: 'Jurisdiction Updated',
+        message: `Your request [${requestDoc.requestId}] was transferred to ${toMunicipality.name} for localized processing.`,
+        request: requestDoc
+      });
+    }
+
+    // 5. Emit real-time status update & room updates
+    emitRequestStatusChanged({
+      requestId: requestDoc.requestId,
+      requestMongoId: requestDoc._id,
+      status: 'UNDER_REVIEW',
+      previousStatus: requestDoc.status,
+      changedBy: req.user,
+      note: `Transferred to ${toMunicipality.name}`,
+      request: requestDoc
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Request successfully transferred to ${toMunicipality.name}`,
+      transfer: transferRecord,
+      request: requestDoc
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get administrative transfer history
+// @route   GET /api/admin/transfers
+// @access  Private (ADMIN)
+const getTransfers = async (req, res, next) => {
+  try {
+    const { requestId, status } = req.query;
+    const query = {};
+    if (requestId) query.request = requestId;
+    if (status) query.status = status;
+
+    const transfers = await MunicipalityTransfer.find(query)
+      .populate('request', 'requestId title category status address')
+      .populate('fromMunicipality', 'name code city district')
+      .populate('toMunicipality', 'name code city district')
+      .populate('transferredBy', 'name email role')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: transfers.length,
+      transfers
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update staff/user configuration (department, category, municipality, etc.)
+// @route   PUT /api/admin/users/:id
+// @access  Private (ADMIN)
+const updateStaffUser = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const { name, fullName, phone, department, municipality, ward, serviceArea, assignedCategory, category, isActive, role } = req.body;
+
+    if (fullName || name) user.name = (fullName || name).trim();
+    if (phone) user.phone = phone.trim();
+
+    if (department !== undefined) {
+      if (!department || department === '' || department === 'NONE' || department === 'null') {
+        user.department = null;
+        if (!assignedCategory && !category) user.assignedCategory = '';
+      } else {
+        const deptObj = await Department.findById(department);
+        if (!deptObj) {
+          return res.status(400).json({ success: false, message: 'Invalid department selected' });
+        }
+        user.department = deptObj._id;
+        if (!assignedCategory && !category && deptObj.name) {
+          user.assignedCategory = deptObj.name;
+        }
+      }
+    }
+
+    if (assignedCategory !== undefined) user.assignedCategory = assignedCategory.trim();
+    if (category !== undefined) user.category = category.trim();
+
+    if (municipality !== undefined) {
+      if (!municipality || municipality === '' || municipality === 'NONE' || municipality === 'null') {
+        user.municipality = null;
+      } else {
+        user.municipality = municipality;
+      }
+    }
+
+    if (ward !== undefined) user.ward = (ward || '').trim();
+    if (serviceArea !== undefined) user.serviceArea = (serviceArea || '').trim();
+    if (typeof isActive === 'boolean') user.isActive = isActive;
+    if (role && ['CITIZEN', 'STAFF', 'ADMIN'].includes(role)) user.role = role;
+
+    await user.save();
+
+    const populatedUser = await User.findById(user._id)
+      .populate('department', 'name code description category icon')
+      .populate('municipality', 'name code city state country wards')
+      .select('-password');
+
+    await ActivityLog.create({
+      user: req.user._id,
+      action: 'USER_UPDATED',
+      targetType: 'User',
+      targetId: user._id.toString(),
+      metadata: { name: user.name, department: populatedUser.department?.name, role: user.role }
+    });
+
+    emitToUser(user._id, 'user:updated', { user: populatedUser });
+
+    res.status(200).json({
+      success: true,
+      message: 'User configuration updated successfully',
+      user: populatedUser
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getUsers,
   createStaffUser,
+  updateStaffUser,
   toggleUserStatus,
   assignStaff,
   updatePriority,
@@ -1190,6 +1673,12 @@ module.exports = {
   getRequestReports,
   getSummaryReports,
   getAdminMunicipality,
-  updateAdminMunicipality
+  updateAdminMunicipality,
+  getAdminMunicipalities,
+  createMunicipality,
+  updateMunicipalityById,
+  toggleMunicipalityStatus,
+  transferRequest,
+  getTransfers
 };
 

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import API from '../../services/api';
 import { toast } from 'react-toastify';
+import LocalFixLogo from '../../components/common/LocalFixLogo';
+import AuthVisualPanel from '../../components/auth/AuthVisualPanel';
 import {
   HiOutlineLockClosed,
   HiOutlineEye,
@@ -22,31 +24,34 @@ const ResetPassword = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Password complexity checks
-  const hasMinLength = newPassword.length >= 6;
-  const hasNumber = /\d/.test(newPassword);
-  const hasLetter = /[a-zA-Z]/.test(newPassword);
+  // Password criteria
+  const hasMinLength = newPassword.length >= 8;
+  const hasUpper = /[A-Z]/.test(newPassword);
+  const hasLower = /[a-z]/.test(newPassword);
+  const hasNumber = /[0-9]/.test(newPassword);
+  const hasSpecial = /[!@#$%^&*(),.?":{}|<>\-_]/.test(newPassword);
   const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (!resetToken || !email) {
+    if (!resetToken) {
       setError('Verification session has expired or is invalid. Please restart the password reset process.');
       return;
     }
 
-    if (!hasMinLength) {
-      setError('New password must be at least 6 characters long.');
+    if (!hasMinLength || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+      setError('Password must be at least 8 characters long and include an uppercase letter, lowercase letter, number, and special character.');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match. Please verify.');
+      setError('Passwords do not match.');
       return;
     }
 
@@ -54,22 +59,17 @@ const ResetPassword = () => {
 
     try {
       const res = await API.post('/auth/reset-password', {
-        email: email.trim().toLowerCase(),
+        email: email ? email.trim().toLowerCase() : undefined,
         resetToken,
         newPassword
       });
 
-      toast.success(res.data?.message || 'Password reset successfully! Please sign in.');
-      navigate('/login', {
-        state: {
-          email: email.trim().toLowerCase(),
-          message: 'Password reset successfully! Please sign in with your new password.'
-        }
-      });
+      toast.success(res.data?.message || 'Password reset successfully!');
+      setIsSuccess(true);
     } catch (err) {
       setError(
         err.response?.data?.message ||
-        'Failed to reset password. The reset link may have expired.'
+        'Failed to reset password. The reset authorization may have expired.'
       );
     } finally {
       setLoading(false);
@@ -77,182 +77,182 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-80px)] flex items-center justify-center p-4 sm:p-6 overflow-hidden">
-      {/* Ambient background glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-72 h-72 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="relative max-w-md w-full backdrop-blur-xl bg-slate-900/85 border border-slate-800/90 rounded-3xl p-6 sm:p-9 shadow-2xl shadow-slate-950/80">
-        
-        {/* Header */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-blue-600 to-teal-500 rounded-2xl shadow-lg shadow-blue-500/25 mb-3.5">
-            <HiOutlineShieldCheck className="text-2xl text-white" />
-          </div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold mb-2">
-            <HiOutlineSparkles className="text-sm" />
-            <span>CREATE NEW PASSWORD</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Reset Password
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-2 leading-relaxed">
-            Choose a strong, secure password to protect your LocalFix account
-          </p>
-        </div>
-
-        {/* Missing Token Warning */}
-        {(!resetToken || !email) && (
-          <div className="mb-5 p-4 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs sm:text-sm flex flex-col gap-2">
-            <div className="font-semibold flex items-center gap-1.5">
-              <span>⚠️</span>
-              <span>Session Missing</span>
-            </div>
-            <p className="text-xs text-amber-200/80">
-              No active reset verification found. Please request a new OTP code.
-            </p>
-            <Link
-              to="/forgot-password"
-              className="inline-block mt-1 text-teal-400 hover:text-teal-300 font-semibold underline text-xs"
-            >
-              Start password reset again
-            </Link>
-          </div>
-        )}
-
-        {/* Error Alert */}
-        {error && (
-          <div className="mb-5 p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs sm:text-sm flex items-start gap-2.5 animate-fadeIn">
-            <span className="text-base leading-none mt-0.5">⚠️</span>
-            <div className="flex-1 font-medium">{error}</div>
-          </div>
-        )}
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="w-full h-full flex flex-col justify-center items-center py-4 px-4 sm:px-8 lg:px-12 overflow-hidden">
+      <div className="w-full max-w-[1250px] mx-auto h-full flex flex-col justify-center">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] gap-8 lg:gap-12 h-full items-stretch overflow-hidden">
           
-          {/* New Password */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-              New Password *
-            </label>
-            <div className="relative">
-              <HiOutlineLockClosed className="absolute left-3.5 top-3.5 text-slate-400 text-lg" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={newPassword}
-                onChange={(e) => {
-                  setNewPassword(e.target.value);
-                  setError('');
-                }}
-                placeholder="At least 6 characters"
-                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2.5 pl-10 pr-11 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                tabIndex={-1}
-                className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-200 transition-colors p-0.5"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? (
-                  <HiOutlineEyeOff className="text-lg" />
-                ) : (
-                  <HiOutlineEye className="text-lg" />
-                )}
-              </button>
-            </div>
-          </div>
+          {/* LEFT COLUMN: Scrollable Form Area */}
+          <div className="h-full overflow-y-auto pr-2 lg:pr-4 flex flex-col justify-center py-4">
+            <div className="w-full max-w-md mx-auto">
 
-          {/* Confirm Password */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-              Confirm New Password *
-            </label>
-            <div className="relative">
-              <HiOutlineLockClosed className="absolute left-3.5 top-3.5 text-slate-400 text-lg" />
-              <input
-                type={showConfirmPassword ? 'text' : 'password'}
-                required
-                value={confirmPassword}
-                onChange={(e) => {
-                  setConfirmPassword(e.target.value);
-                  setError('');
-                }}
-                placeholder="Repeat new password"
-                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl py-2.5 pl-10 pr-11 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                tabIndex={-1}
-                className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-200 transition-colors p-0.5"
-                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-              >
-                {showConfirmPassword ? (
-                  <HiOutlineEyeOff className="text-lg" />
-                ) : (
-                  <HiOutlineEye className="text-lg" />
-                )}
-              </button>
-            </div>
-          </div>
+          {!isSuccess ? (
+            <div className="space-y-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-black text-[#29252A] tracking-tight">
+                  Create a New Password
+                </h1>
+                <p className="text-xs sm:text-sm text-[#6B666E] mt-1">
+                  Your new password must be strong and secure.
+                </p>
+              </div>
 
-          {/* Password Checklist */}
-          {newPassword && (
-            <div className="p-3 bg-slate-950/50 border border-slate-800/80 rounded-xl space-y-1.5 text-xs">
-              <div className="font-semibold text-slate-400 mb-1">Password Requirements:</div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className={`flex items-center gap-1.5 ${hasMinLength ? 'text-emerald-400' : 'text-slate-500'}`}>
-                  <HiOutlineCheckCircle className="text-sm" />
-                  <span>At least 6 characters</span>
+              {/* Error Message Alert */}
+              {error && (
+                <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2.5 animate-fadeIn">
+                  <span className="text-base shrink-0">⚠️</span>
+                  <span>{error}</span>
                 </div>
-                <div className={`flex items-center gap-1.5 ${hasLetter ? 'text-emerald-400' : 'text-slate-500'}`}>
-                  <HiOutlineCheckCircle className="text-sm" />
-                  <span>Includes letters</span>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+                <div>
+                  <label className="block text-xs font-bold text-[#29252A] mb-1">
+                    New Password *
+                  </label>
+                  <div className="relative">
+                    <HiOutlineLockClosed className="absolute left-3.5 top-3.5 text-[#9E98A2] text-lg" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Enter new strong password"
+                      className="w-full bg-white border border-[#EFE7E0] rounded-xl py-2.5 pl-10 pr-11 text-xs sm:text-sm text-[#29252A] placeholder-[#9E98A2] focus:outline-none focus:border-[#C65F63] transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      tabIndex={-1}
+                      className="absolute right-3.5 top-3 text-[#9E98A2] hover:text-[#29252A] p-0.5"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <HiOutlineEyeOff className="text-lg" /> : <HiOutlineEye className="text-lg" />}
+                    </button>
+                  </div>
+
+                  {/* Password Checklist */}
+                  {newPassword && (
+                    <div className="mt-2 p-3 bg-white border border-[#EFE7E0] rounded-xl text-[11px] space-y-1 text-[#6B666E]">
+                      <div className="font-semibold text-[#29252A] mb-1">Password requirements:</div>
+                      <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                        <div className={`flex items-center gap-1 ${hasMinLength ? 'text-[#5C9A72] font-semibold' : ''}`}>
+                          <HiOutlineCheckCircle />
+                          <span>At least 8 characters</span>
+                        </div>
+                        <div className={`flex items-center gap-1 ${hasUpper ? 'text-[#5C9A72] font-semibold' : ''}`}>
+                          <HiOutlineCheckCircle />
+                          <span>Uppercase letter</span>
+                        </div>
+                        <div className={`flex items-center gap-1 ${hasLower ? 'text-[#5C9A72] font-semibold' : ''}`}>
+                          <HiOutlineCheckCircle />
+                          <span>Lowercase letter</span>
+                        </div>
+                        <div className={`flex items-center gap-1 ${hasNumber ? 'text-[#5C9A72] font-semibold' : ''}`}>
+                          <HiOutlineCheckCircle />
+                          <span>Number</span>
+                        </div>
+                        <div className={`flex items-center gap-1 ${hasSpecial ? 'text-[#5C9A72] font-semibold' : ''}`}>
+                          <HiOutlineCheckCircle />
+                          <span>Special character</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className={`flex items-center gap-1.5 ${hasNumber ? 'text-emerald-400' : 'text-slate-500'}`}>
-                  <HiOutlineCheckCircle className="text-sm" />
-                  <span>Includes numbers</span>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#29252A] mb-1">
+                    Confirm New Password *
+                  </label>
+                  <div className="relative">
+                    <HiOutlineLockClosed className="absolute left-3.5 top-3.5 text-[#9E98A2] text-lg" />
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      required
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm new password"
+                      className="w-full bg-white border border-[#EFE7E0] rounded-xl py-2.5 pl-10 pr-11 text-xs sm:text-sm text-[#29252A] placeholder-[#9E98A2] focus:outline-none focus:border-[#C65F63] transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      tabIndex={-1}
+                      className="absolute right-3.5 top-3 text-[#9E98A2] hover:text-[#29252A] p-0.5"
+                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showConfirmPassword ? <HiOutlineEyeOff className="text-lg" /> : <HiOutlineEye className="text-lg" />}
+                    </button>
+                  </div>
+                  {confirmPassword && (
+                    <div className="mt-1 flex items-center gap-1 text-[11px]">
+                      {passwordsMatch ? (
+                        <span className="text-[#5C9A72] font-semibold flex items-center gap-1">
+                          <HiOutlineCheckCircle /> Passwords match
+                        </span>
+                      ) : (
+                        <span className="text-rose-600">Passwords do not match</span>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className={`flex items-center gap-1.5 ${passwordsMatch ? 'text-emerald-400' : 'text-slate-500'}`}>
-                  <HiOutlineCheckCircle className="text-sm" />
-                  <span>Passwords match</span>
-                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || !passwordsMatch || !hasMinLength}
+                  className="w-full py-3.5 px-4 rounded-xl bg-[#C65F63] hover:bg-[#B35256] text-white font-bold text-sm shadow-lg shadow-[#C65F63]/30 transition disabled:opacity-50 mt-2"
+                >
+                  {loading ? 'Resetting Password...' : 'Reset Password'}
+                </button>
+              </form>
+
+              <div className="pt-2 text-center text-xs text-[#6B666E]">
+                <span>Remember your password? </span>
+                <Link to="/login" className="font-bold text-[#C65F63] hover:underline">
+                  Back to Login
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 space-y-4 animate-fadeIn">
+              <div className="w-16 h-16 rounded-full bg-emerald-50 border-2 border-emerald-500 text-emerald-600 flex items-center justify-center text-3xl mx-auto shadow-md">
+                <HiOutlineCheckCircle />
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-[#29252A] tracking-tight">
+                Password Reset Successfully!
+              </h2>
+              <p className="text-xs sm:text-sm text-[#6B666E] max-w-sm mx-auto">
+                Your password has been updated securely. You can now log in with your new credentials.
+              </p>
+              <div className="pt-4">
+                <Link
+                  to="/login"
+                  state={{ email, message: 'Password reset successfully. Please sign in with your new password.' }}
+                  className="inline-flex items-center justify-center px-8 py-3.5 rounded-xl bg-[#C65F63] hover:bg-[#B35256] text-white font-bold text-sm shadow-lg shadow-[#C65F63]/30 transition"
+                >
+                  Back to Login
+                </Link>
               </div>
             </div>
           )}
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading || !resetToken || !hasMinLength || !passwordsMatch}
-            className="w-full mt-2 bg-gradient-to-r from-blue-600 via-blue-500 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-blue-600/25 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                <span>Updating Password...</span>
-              </>
-            ) : (
-              <span>Update Password</span>
-            )}
-          </button>
-        </form>
-
-        <p className="mt-7 text-center text-xs text-slate-400">
-          Remember your credentials?{' '}
-          <Link to="/login" className="text-teal-400 font-semibold hover:text-teal-300 transition-colors">
-            Sign In
-          </Link>
-        </p>
+        </div>
       </div>
+
+      {/* RIGHT COLUMN: Centered Stationary Visual Graphic Panel */}
+      <div className="hidden lg:flex flex-col h-full overflow-hidden py-4">
+        <AuthVisualPanel
+          title="Your Voice Matters"
+          subtitle="Report local problems, track progress and stay connected with your community."
+          tagline="LocalFix Community"
+          imageSrc="/auth_community_card.jpg"
+        />
+      </div>
+
     </div>
-  );
+  </div>
+</div>
+);
 };
 
 export default ResetPassword;

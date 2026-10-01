@@ -167,6 +167,13 @@ const RequestDetails = () => {
         });
 
         setHistory((prevHistory) => {
+          // Prevent duplicate history insertion
+          const isDuplicate = prevHistory.some(
+            (h) => (h.action === `STATUS_${payload.status}` || h.newStatus === payload.status) &&
+                   (payload.previousStatus ? h.previousStatus === payload.previousStatus : true)
+          );
+          if (isDuplicate) return prevHistory;
+
           const entry = {
             _id: 'rt_' + Date.now(),
             action: `STATUS_${payload.status}`,
@@ -357,8 +364,8 @@ const RequestDetails = () => {
   if (loading) {
     return (
       <div className="py-24 text-center space-y-3">
-        <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
-        <div className="text-xs text-slate-400 font-medium">Loading request tracking details...</div>
+        <div className="w-10 h-10 border-3 border-[#C65F63] border-t-transparent rounded-full animate-spin mx-auto" />
+        <div className="text-xs text-[#6B666E] font-medium">Loading request tracking details...</div>
       </div>
     );
   }
@@ -375,22 +382,22 @@ const RequestDetails = () => {
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Top Bar: Navigation & Breadcrumbs */}
       <div className="flex flex-wrap items-center justify-between gap-4 text-xs">
-        <div className="flex items-center gap-2 text-slate-400">
-          <Link to="/dashboard" className="hover:text-blue-400 transition">
+        <div className="flex items-center gap-2 text-[#6B666E]">
+          <Link to="/dashboard" className="hover:text-[#C65F63] transition font-semibold">
             Dashboard
           </Link>
-          <HiOutlineChevronRight className="text-slate-600 text-xs" />
-          <Link to="/my-requests" className="hover:text-blue-400 transition">
+          <HiOutlineChevronRight className="text-[#9E98A2] text-xs" />
+          <Link to="/requests" className="hover:text-[#C65F63] transition font-semibold">
             My Requests
           </Link>
-          <HiOutlineChevronRight className="text-slate-600 text-xs" />
-          <span className="font-mono font-bold text-slate-200">{request.requestId}</span>
+          <HiOutlineChevronRight className="text-[#9E98A2] text-xs" />
+          <span className="font-mono font-bold text-[#C65F63]">#{request.requestId}</span>
         </div>
 
         <div className="flex items-center gap-3">
           <Link
-            to="/my-requests"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold transition"
+            to="/requests"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-[#FAF5F0] text-[#29252A] border border-[#EFE7E0] text-xs font-bold transition shadow-sm"
           >
             <HiOutlineArrowLeft />
             <span>Back to My Requests</span>
@@ -398,7 +405,7 @@ const RequestDetails = () => {
 
           <button
             onClick={() => generateRequestPDF(request, history, feedback)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-semibold transition"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#FDECEF] hover:bg-[#F8DCE2] text-[#C65F63] border border-[#C65F63]/30 text-xs font-bold transition shadow-sm"
           >
             <HiOutlineDocumentDownload className="text-base" />
             <span>Download Report</span>
@@ -411,53 +418,53 @@ const RequestDetails = () => {
 
       {/* Resolution Verification Section (When Pending Verification) */}
       {isCitizenOwner && isPendingVerification && (
-        <div className="bg-slate-900 border border-emerald-500/40 rounded-2xl p-6 space-y-4 shadow-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+        <div className="bg-white border border-emerald-200 rounded-3xl p-6 sm:p-8 space-y-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#EFE7E0] pb-4">
             <div className="space-y-1">
-              <div className="flex items-center gap-2 text-emerald-400 font-bold text-base">
-                <HiOutlineCheckCircle className="text-2xl" />
+              <div className="flex items-center gap-2 text-emerald-700 font-black text-base">
+                <HiOutlineCheckCircle className="text-2xl text-emerald-600" />
                 <span>Resolution Verification</span>
               </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
+              <p className="text-xs text-[#6B666E] leading-relaxed">
                 Field staff have completed site work and submitted resolution proof. Please inspect the repair details below and confirm completion.
               </p>
             </div>
-            <span className="shrink-0 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            <span className="shrink-0 px-3 py-1 rounded-full text-xs font-bold bg-[#FDECEF] text-[#C65F63] border border-[#C65F63]/20">
               Pending Verification
             </span>
           </div>
 
           {/* Quick Summary Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-[#FAF5F0] p-4 rounded-2xl border border-[#EFE7E0] text-xs">
             <div>
-              <span className="text-slate-500">Service Request:</span>{' '}
-              <span className="font-bold text-slate-200">{request.title} ({request.requestId})</span>
+              <span className="text-[#6B666E]">Service Request:</span>{' '}
+              <span className="font-bold text-[#29252A]">{request.title} (#{request.requestId})</span>
             </div>
             <div>
-              <span className="text-slate-500">Category & Location:</span>{' '}
-              <span className="text-slate-300">{request.category} • {request.address}</span>
+              <span className="text-[#6B666E]">Category & Location:</span>{' '}
+              <span className="text-[#29252A]">{request.category} • {request.address}</span>
             </div>
             <div>
-              <span className="text-slate-500">Assigned Department:</span>{' '}
-              <span className="text-teal-400 font-semibold">{request.department?.name || 'Municipal Works'}</span>
+              <span className="text-[#6B666E]">Assigned Department:</span>{' '}
+              <span className="text-[#6B4E71] font-bold">{request.department?.name || 'Municipal Works'}</span>
             </div>
             <div>
-              <span className="text-slate-500">Resolution Date:</span>{' '}
-              <span className="text-slate-300">{request.resolvedAt ? new Date(request.resolvedAt).toLocaleString() : 'Recently Submitted'}</span>
+              <span className="text-[#6B666E]">Resolution Date:</span>{' '}
+              <span className="text-[#29252A]">{request.resolvedAt ? new Date(request.resolvedAt).toLocaleString() : 'Recently Submitted'}</span>
             </div>
           </div>
 
-          {/* Resolution Notes & Proof Preview */}
+          {/* Resolution Notes */}
           {request.resolutionNotes && (
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 space-y-1">
-              <span className="font-bold text-teal-400 uppercase tracking-wider text-[10px]">Field Staff Repair Notes:</span>
+            <div className="p-4 rounded-2xl bg-[#FAF5F0] border border-[#EFE7E0] text-xs text-[#29252A] space-y-1">
+              <span className="font-bold text-[#6B4E71] uppercase tracking-wider text-[10px]">Field Staff Repair Notes:</span>
               <p className="leading-relaxed">{request.resolutionNotes}</p>
             </div>
           )}
 
           {(request.beforeImage || request.afterImage) && (
             <div className="space-y-2 pt-2">
-              <div className="text-xs font-semibold text-slate-400">Before & After Work Comparison:</div>
+              <div className="text-xs font-bold text-[#6B666E]">Before & After Work Comparison:</div>
               <BeforeAfterViewer beforeImage={request.beforeImage} afterImage={request.afterImage} />
             </div>
           )}
@@ -466,14 +473,14 @@ const RequestDetails = () => {
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <button
               onClick={() => setShowVerifyModal(true)}
-              className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2"
+              className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-2"
             >
               <HiOutlineCheckCircle className="text-base" />
               <span>Verify Resolution</span>
             </button>
             <button
               onClick={() => setShowReopenModal(true)}
-              className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold text-xs border border-rose-500/30 transition flex items-center justify-center gap-1.5"
+              className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 transition flex items-center justify-center gap-1.5"
             >
               <HiOutlineExclamation className="text-base" />
               <span>Report Issue / Reject Resolution</span>
@@ -484,33 +491,33 @@ const RequestDetails = () => {
 
       {/* Citizen Feedback & Rating Section (When Closed / Verified) */}
       {isCitizenOwner && isClosedOrVerified && (
-        <div className="bg-slate-900 border border-amber-500/30 rounded-2xl p-6 space-y-4 shadow-xl">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <HiStar className="text-amber-400 text-lg" />
+        <div className="bg-white border border-[#EFE7E0] rounded-3xl p-6 sm:p-8 space-y-4 shadow-sm">
+          <div className="flex items-center justify-between border-b border-[#EFE7E0] pb-4">
+            <h2 className="text-base font-black text-[#29252A] flex items-center gap-2">
+              <HiStar className="text-amber-500 text-lg" />
               <span>{feedback ? 'Your Feedback & Quality Rating' : 'Rate This Service'}</span>
             </h2>
-            <span className="text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+            <span className="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
               Verified & Closed
             </span>
           </div>
 
           {feedbackLoading ? (
-            <div className="py-6 text-center text-xs text-slate-500">Checking existing feedback...</div>
+            <div className="py-6 text-center text-xs text-[#6B666E]">Checking existing feedback...</div>
           ) : feedback && !isEditingFeedback ? (
             /* Display Submitted Feedback */
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3 text-xs">
+            <div className="p-5 rounded-2xl bg-[#FAF5F0] border border-[#EFE7E0] space-y-3 text-xs">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <div className="text-slate-400 text-[11px]">You rated this resolution:</div>
-                  <div className="flex items-center gap-1.5 text-amber-400 text-lg">
+                  <div className="text-[#6B666E] text-[11px]">You rated this resolution:</div>
+                  <div className="flex items-center gap-1.5 text-amber-500 text-lg">
                     {[1, 2, 3, 4, 5].map((s) => (
                       <HiStar
                         key={s}
-                        className={s <= feedback.rating ? 'text-amber-400' : 'text-slate-700'}
+                        className={s <= feedback.rating ? 'text-amber-500' : 'text-slate-300'}
                       />
                     ))}
-                    <span className="text-xs font-bold text-slate-300 ml-2">
+                    <span className="text-xs font-bold text-[#29252A] ml-2">
                       {feedback.rating} / 5 Stars
                     </span>
                   </div>
@@ -523,14 +530,14 @@ const RequestDetails = () => {
                       setEditComment(feedback.comment || '');
                       setIsEditingFeedback(true);
                     }}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white hover:bg-[#FAF5F0] text-[#29252A] border border-[#EFE7E0] text-xs font-bold transition"
                   >
                     <HiOutlinePencilAlt />
                     <span>Edit</span>
                   </button>
                   <button
                     onClick={handleDeleteFeedback}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-semibold transition border border-rose-500/30"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition border border-rose-200"
                   >
                     <HiOutlineTrash />
                     <span>Delete</span>
@@ -539,36 +546,26 @@ const RequestDetails = () => {
               </div>
 
               {feedback.comment && (
-                <div className="pt-2 border-t border-slate-900 text-slate-300 leading-relaxed italic">
+                <div className="pt-2 border-t border-[#EFE7E0] text-[#29252A] leading-relaxed italic">
                   "{feedback.comment}"
                 </div>
               )}
 
               {feedback.suggestion && (
-                <div className="text-xs text-teal-300 bg-teal-950/40 border border-teal-900/60 p-2.5 rounded-lg">
-                  <span className="font-semibold text-teal-400">Your Suggestion:</span> {feedback.suggestion}
+                <div className="text-xs text-[#6B4E71] bg-[#E8D7E6]/40 border border-[#6B4E71]/20 p-3 rounded-xl">
+                  <span className="font-bold text-[#6B4E71]">Your Suggestion:</span> {feedback.suggestion}
                 </div>
               )}
 
-              {feedback.categories && feedback.categories.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {feedback.categories.map((c) => (
-                    <span key={c} className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-950/60 text-blue-300 border border-blue-900/60">
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <div className="text-[10px] text-slate-500">
+              <div className="text-[10px] text-[#9E98A2]">
                 Submitted on: {new Date(feedback.createdAt).toLocaleString()}
                 {feedback.updatedAt && feedback.updatedAt !== feedback.createdAt && ' (edited)'}
               </div>
             </div>
           ) : isEditingFeedback ? (
             /* Edit Feedback Form */
-            <form onSubmit={handleUpdateFeedback} className="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800">
-              <div className="text-xs font-bold text-slate-200">Edit Your Service Rating</div>
+            <form onSubmit={handleUpdateFeedback} className="space-y-3 bg-[#FAF5F0] p-5 rounded-2xl border border-[#EFE7E0]">
+              <div className="text-xs font-bold text-[#29252A]">Edit Your Service Rating</div>
               <div className="flex items-center gap-2">
                 {[1, 2, 3, 4, 5].map((s) => (
                   <button
@@ -577,8 +574,8 @@ const RequestDetails = () => {
                     onClick={() => setEditRating(s)}
                     className={`p-2.5 rounded-xl border text-xl transition ${
                       s <= editRating
-                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 shadow-md'
-                        : 'bg-slate-900 text-slate-600 border-slate-800 hover:text-slate-400'
+                        ? 'bg-amber-100 text-amber-600 border-amber-300 shadow-sm'
+                        : 'bg-white text-slate-400 border-[#EFE7E0] hover:text-amber-500'
                     }`}
                     title={`Rate ${s} Star${s > 1 ? 's' : ''}`}
                     aria-label={`${s} Star${s > 1 ? 's' : ''}`}
@@ -586,12 +583,12 @@ const RequestDetails = () => {
                     <HiStar />
                   </button>
                 ))}
-                <span className="text-xs font-semibold text-amber-400 ml-2">{editRating} Star{editRating > 1 ? 's' : ''}</span>
+                <span className="text-xs font-bold text-amber-600 ml-2">{editRating} Star{editRating > 1 ? 's' : ''}</span>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">
-                  Feedback Comment (Optional, max 1000 chars):
+                <label className="block text-xs font-bold text-[#29252A] mb-1">
+                  Feedback Comment (Optional):
                 </label>
                 <textarea
                   rows={3}
@@ -599,7 +596,7 @@ const RequestDetails = () => {
                   onChange={(e) => setEditComment(e.target.value)}
                   maxLength={1000}
                   placeholder="Was the issue resolved properly?"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-white border border-[#EFE7E0] rounded-xl p-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
                 />
               </div>
 
@@ -607,14 +604,14 @@ const RequestDetails = () => {
                 <button
                   type="submit"
                   disabled={submittingFeedback}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg transition disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-[#C65F63] hover:bg-[#B35256] text-white font-bold text-xs shadow-md transition disabled:opacity-50"
                 >
                   {submittingFeedback ? 'Updating...' : 'Update Feedback'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsEditingFeedback(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold text-xs hover:bg-slate-700 transition"
+                  className="px-4 py-2.5 rounded-xl bg-white border border-[#EFE7E0] text-[#6B666E] font-bold text-xs hover:bg-[#FAF5F0] transition"
                 >
                   Cancel
                 </button>
@@ -622,20 +619,20 @@ const RequestDetails = () => {
             </form>
           ) : (
             /* Standalone Feedback Submission Form */
-            <form onSubmit={handleSubmitStandaloneFeedback} className="space-y-4 bg-slate-950 p-4 rounded-xl border border-slate-800">
-              <p className="text-xs text-slate-300 leading-relaxed">
+            <form onSubmit={handleSubmitStandaloneFeedback} className="space-y-4 bg-[#FAF5F0] p-5 rounded-2xl border border-[#EFE7E0]">
+              <p className="text-xs text-[#6B666E] leading-relaxed">
                 Thank you for verifying this service request. Please take a moment to rate the timeliness and quality of the municipal repair.
               </p>
 
               {feedbackError && (
-                <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
                   {feedbackError}
                 </div>
               )}
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-300">
-                  Select Rating (1 to 5 Stars): <span className="text-rose-400">*</span>
+                <label className="block text-xs font-bold text-[#29252A]">
+                  Select Rating (1 to 5 Stars): <span className="text-rose-500">*</span>
                 </label>
                 <div className="flex items-center gap-2">
                   {[1, 2, 3, 4, 5].map((s) => (
@@ -645,8 +642,8 @@ const RequestDetails = () => {
                       onClick={() => setRating(s)}
                       className={`p-2.5 rounded-xl border text-xl transition ${
                         s <= rating
-                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 shadow-md'
-                          : 'bg-slate-900 text-slate-600 border-slate-800 hover:text-slate-400'
+                          ? 'bg-amber-100 text-amber-600 border-amber-300 shadow-sm'
+                          : 'bg-white text-slate-400 border-[#EFE7E0] hover:text-amber-500'
                       }`}
                       title={`Rate ${s} Star${s > 1 ? 's' : ''}`}
                       aria-label={`${s} Star${s > 1 ? 's' : ''}`}
@@ -654,35 +651,12 @@ const RequestDetails = () => {
                       <HiStar />
                     </button>
                   ))}
-                  <span className="text-xs font-bold text-amber-400 ml-2">{rating} Star{rating > 1 ? 's' : ''}</span>
-                </div>
-              </div>
-
-              {/* Feedback Categories */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-300">
-                  Feedback Categories (Optional):
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {feedbackCategoryOptions.map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => toggleCategory(cat)}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium border transition ${
-                        selectedCategories.includes(cat)
-                          ? 'bg-blue-600/30 text-blue-300 border-blue-500/60'
-                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
+                  <span className="text-xs font-bold text-amber-600 ml-2">{rating} Star{rating > 1 ? 's' : ''}</span>
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-300">
+                <label className="block text-xs font-bold text-[#29252A]">
                   Feedback Comment (Optional):
                 </label>
                 <textarea
@@ -691,28 +665,14 @@ const RequestDetails = () => {
                   onChange={(e) => setFeedbackComment(e.target.value)}
                   maxLength={1000}
                   placeholder="Share feedback on repair quality, speed, or staff communication..."
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-300">
-                  Improvement Suggestion (Optional):
-                </label>
-                <textarea
-                  rows={2}
-                  value={feedbackSuggestion}
-                  onChange={(e) => setFeedbackSuggestion(e.target.value)}
-                  maxLength={1000}
-                  placeholder="How can municipal services be improved next time?"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-white border border-[#EFE7E0] rounded-xl p-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={submittingFeedback}
-                className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-lg shadow-amber-600/20 transition disabled:opacity-50"
+                className="px-6 py-2.5 rounded-xl bg-[#C65F63] hover:bg-[#B35256] text-white font-bold text-xs shadow-md transition disabled:opacity-50"
               >
                 {submittingFeedback ? 'Submitting...' : 'Submit Feedback'}
               </button>
@@ -722,9 +682,9 @@ const RequestDetails = () => {
       )}
 
       {/* Problem Description Section */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
-        <h2 className="text-base font-bold text-white border-b border-slate-800 pb-3">Problem Description</h2>
-        <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
+      <div className="bg-white border border-[#EFE7E0] rounded-3xl p-6 sm:p-8 space-y-3 shadow-sm">
+        <h2 className="text-base font-black text-[#29252A] border-b border-[#EFE7E0] pb-3">Problem Description</h2>
+        <div className="p-4 rounded-2xl bg-[#FAF5F0] border border-[#EFE7E0] text-xs text-[#29252A] leading-relaxed whitespace-pre-line">
           {request.description}
         </div>
       </div>
@@ -734,8 +694,10 @@ const RequestDetails = () => {
         location={request.location}
         address={request.address}
         city={request.city}
+        district={request.district || request.municipalitySnapshot?.district || request.municipality?.district}
         state={request.state}
         pincode={request.pincode}
+        municipality={request.municipality || request.municipalitySnapshot}
       />
 
       {/* Evidence Section */}
@@ -744,20 +706,6 @@ const RequestDetails = () => {
         beforeImage={request.beforeImage}
         afterImage={request.afterImage}
       />
-
-      {/* Before & After Proof Viewer (If staff uploaded) */}
-      {(request.beforeImage || request.afterImage || request.resolutionNotes) && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-          <h2 className="text-base font-bold text-white border-b border-slate-800 pb-3">Field Resolution Proof</h2>
-          <BeforeAfterViewer beforeImage={request.beforeImage} afterImage={request.afterImage} />
-          {request.resolutionNotes && (
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300">
-              <span className="font-bold text-teal-400">Field Worker Notes: </span>
-              {request.resolutionNotes}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Status Timeline & Metadata Side-by-Side */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -770,9 +718,9 @@ const RequestDetails = () => {
       </div>
 
       {/* Comments Section */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-        <h2 className="text-base font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
-          <HiOutlineChatAlt className="text-blue-400 text-lg" />
+      <div className="bg-white border border-[#EFE7E0] rounded-3xl p-6 sm:p-8 space-y-4 shadow-sm">
+        <h2 className="text-base font-black text-[#29252A] flex items-center gap-2 border-b border-[#EFE7E0] pb-3">
+          <HiOutlineChatAlt className="text-[#C65F63] text-lg" />
           <span>Activity Discussion & Updates ({comments.length})</span>
         </h2>
 
@@ -783,12 +731,12 @@ const RequestDetails = () => {
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             placeholder="Add a comment or question about this request..."
-            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+            className="flex-1 bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl px-4 py-2.5 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63] focus:bg-white transition"
           />
           <button
             type="submit"
             disabled={commenting || !newComment.trim()}
-            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs disabled:opacity-50"
+            className="px-5 py-2.5 rounded-xl bg-[#C65F63] hover:bg-[#B35256] text-white font-bold text-xs shadow-md transition disabled:opacity-50"
           >
             {commenting ? 'Posting...' : 'Post'}
           </button>
@@ -797,15 +745,17 @@ const RequestDetails = () => {
         {/* Comments List */}
         <div className="space-y-3 pt-2">
           {comments.length === 0 ? (
-            <div className="text-xs text-slate-500 italic py-4">No comments posted yet.</div>
+            <div className="text-xs text-[#6B666E] italic py-4 text-center bg-[#FAF5F0] rounded-xl border border-[#EFE7E0]">
+              No comments posted yet.
+            </div>
           ) : (
             comments.map((c) => (
-              <div key={c._id} className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1 text-xs">
+              <div key={c._id} className="p-4 rounded-2xl bg-[#FAF5F0] border border-[#EFE7E0] space-y-1 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-200">{c.user?.name || 'User'}</span>
-                  <span className="text-[10px] text-slate-500">{new Date(c.createdAt).toLocaleString()}</span>
+                  <span className="font-bold text-[#29252A]">{c.user?.name || 'User'}</span>
+                  <span className="text-[10px] text-[#9E98A2]">{new Date(c.createdAt).toLocaleString()}</span>
                 </div>
-                <p className="text-slate-300 leading-relaxed">{c.message}</p>
+                <p className="text-[#6B666E] leading-relaxed">{c.message}</p>
               </div>
             ))
           )}
@@ -814,19 +764,19 @@ const RequestDetails = () => {
 
       {/* Verify Resolution Modal */}
       {showVerifyModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <HiOutlineCheckCircle className="text-emerald-400 text-xl" />
+        <div className="fixed inset-0 bg-[#29252A]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="max-w-md w-full bg-white border border-[#EFE7E0] rounded-3xl p-6 sm:p-8 space-y-4 shadow-2xl">
+            <h3 className="text-lg font-black text-[#29252A] flex items-center gap-2">
+              <HiOutlineCheckCircle className="text-emerald-600 text-xl" />
               <span>Verify Work & Close Request</span>
             </h3>
 
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-[#6B666E] leading-relaxed">
               Confirming verification will mark this service request as <strong>Closed</strong>. You can optionally rate the repair now.
             </p>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-2">Rating (1 to 5 Stars):</label>
+              <label className="block text-xs font-bold text-[#29252A] mb-2">Rating (1 to 5 Stars):</label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((s) => (
                   <button
@@ -835,8 +785,8 @@ const RequestDetails = () => {
                     onClick={() => setRating(s)}
                     className={`p-2.5 rounded-xl text-xl border transition ${
                       s <= rating
-                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
-                        : 'bg-slate-950 text-slate-600 border-slate-800'
+                        ? 'bg-amber-100 text-amber-600 border-amber-300'
+                        : 'bg-[#FAF5F0] text-slate-300 border-[#EFE7E0]'
                     }`}
                     aria-label={`${s} star rating`}
                   >
@@ -847,14 +797,14 @@ const RequestDetails = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Feedback Comment (Optional):</label>
+              <label className="block text-xs font-bold text-[#29252A] mb-1">Feedback Comment (Optional):</label>
               <textarea
                 rows={3}
                 value={feedbackComment}
                 onChange={(e) => setFeedbackComment(e.target.value)}
                 placeholder="How was the response speed and repair quality?"
                 maxLength={1000}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl p-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
               />
             </div>
 
@@ -862,7 +812,7 @@ const RequestDetails = () => {
               <button
                 type="button"
                 onClick={() => setShowVerifyModal(false)}
-                className="flex-1 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition"
+                className="flex-1 py-2.5 rounded-xl bg-[#FAF5F0] border border-[#EFE7E0] text-[#6B666E] text-xs font-bold hover:bg-[#EFE7E0] transition"
               >
                 Cancel
               </button>
@@ -870,7 +820,7 @@ const RequestDetails = () => {
                 type="button"
                 disabled={verifying}
                 onClick={handleVerifyResolution}
-                className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 transition disabled:opacity-50"
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition disabled:opacity-50"
               >
                 {verifying ? 'Verifying...' : 'Confirm & Close'}
               </button>
@@ -881,19 +831,19 @@ const RequestDetails = () => {
 
       {/* Reopen Request Modal */}
       {showReopenModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <HiOutlineExclamation className="text-rose-400 text-xl" />
+        <div className="fixed inset-0 bg-[#29252A]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="max-w-md w-full bg-white border border-[#EFE7E0] rounded-3xl p-6 sm:p-8 space-y-4 shadow-2xl">
+            <h3 className="text-lg font-black text-[#29252A] flex items-center gap-2">
+              <HiOutlineExclamation className="text-rose-600 text-xl" />
               <span>Report Issue / Reopen Request</span>
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[#6B666E]">
               Please explain why the issue is still unresolved so the field team can be reassigned to inspect.
             </p>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Reason for Reopening: <span className="text-rose-400">*</span>
+              <label className="block text-xs font-bold text-[#29252A] mb-1">
+                Reason for Reopening: <span className="text-rose-600">*</span>
               </label>
               <textarea
                 rows={4}
@@ -901,7 +851,7 @@ const RequestDetails = () => {
                 onChange={(e) => setReopenReason(e.target.value)}
                 maxLength={1000}
                 placeholder="Describe what is still broken or incomplete..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-rose-500"
+                className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl p-3 text-xs text-[#29252A] focus:outline-none focus:border-rose-500"
               />
             </div>
 
@@ -909,7 +859,7 @@ const RequestDetails = () => {
               <button
                 type="button"
                 onClick={() => setShowReopenModal(false)}
-                className="flex-1 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition"
+                className="flex-1 py-2.5 rounded-xl bg-[#FAF5F0] border border-[#EFE7E0] text-[#6B666E] text-xs font-bold hover:bg-[#EFE7E0] transition"
               >
                 Cancel
               </button>
@@ -917,7 +867,7 @@ const RequestDetails = () => {
                 type="button"
                 disabled={reopening || !reopenReason.trim()}
                 onClick={handleReopenRequest}
-                className="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-600/20 transition disabled:opacity-50"
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md transition disabled:opacity-50"
               >
                 {reopening ? 'Reopening...' : 'Submit Reopen Report'}
               </button>

@@ -157,7 +157,7 @@ const AdminSettingsPage = () => {
 
   if (loading) {
     return (
-      <div className="py-16 text-center text-slate-400 animate-pulse">
+      <div className="py-16 text-center text-[#6B4E71] animate-pulse">
         Loading system configuration...
       </div>
     );
@@ -167,13 +167,15 @@ const AdminSettingsPage = () => {
     <div className="space-y-6 max-w-5xl">
       
       {/* Header Banner */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+      <div className="bg-white border border-[#EFE7E0] p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            <HiOutlineCog className="text-blue-400 text-3xl" />
+          <h1 className="text-2xl font-bold text-[#29252A] tracking-tight flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-[#FDECEF] text-[#C65F63] flex items-center justify-center">
+              <HiOutlineCog className="text-xl" />
+            </div>
             <span>Administrative System Settings</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-[#6B4E71] mt-1">
             Configure municipal jurisdiction, service areas, global application identity & operational parameters.
           </p>
         </div>
@@ -182,7 +184,7 @@ const AdminSettingsPage = () => {
           <button
             type="button"
             onClick={fetchSettings}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FAF5F0] hover:bg-[#FDECEF] text-[#6B4E71] text-xs font-semibold border border-[#EFE7E0] transition"
           >
             <HiOutlineRefresh className="text-base" />
             <span>Discard Changes</span>
@@ -192,7 +194,7 @@ const AdminSettingsPage = () => {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow transition disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#C65F63] hover:bg-[#b25155] text-white text-xs font-semibold shadow-sm transition disabled:opacity-50"
           >
             <HiOutlineSave className="text-base" />
             <span>{saving ? 'Saving...' : 'Save Settings'}</span>
@@ -201,14 +203,14 @@ const AdminSettingsPage = () => {
       </div>
 
       {/* Section 0: Municipal Jurisdiction Configuration */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5 shadow-lg">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+      <div className="bg-white border border-[#EFE7E0] rounded-2xl p-6 space-y-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#EFE7E0] pb-3">
           <div>
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <HiOutlineOfficeBuilding className="text-teal-400 text-lg" />
+            <h2 className="text-sm font-bold text-[#29252A] flex items-center gap-2">
+              <HiOutlineOfficeBuilding className="text-[#C65F63] text-lg" />
               <span>Municipal Jurisdiction & Ward Boundaries</span>
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-[#6B4E71] mt-0.5">
               Configure your civic administrative jurisdiction, recognized postal codes, and service wards
             </p>
           </div>
@@ -216,7 +218,7 @@ const AdminSettingsPage = () => {
             type="button"
             onClick={handleSaveMunicipality}
             disabled={muniSaving}
-            className="self-start sm:self-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold shadow transition disabled:opacity-50"
+            className="self-start sm:self-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#6B4E71] hover:bg-[#583f5e] text-white text-xs font-semibold shadow-sm transition disabled:opacity-50"
           >
             <HiOutlineSave className="text-sm" />
             <span>{muniSaving ? 'Saving...' : 'Save Jurisdiction'}</span>
@@ -225,98 +227,98 @@ const AdminSettingsPage = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Municipality Name *</label>
+            <label className="block text-xs font-semibold text-[#6B4E71] mb-1">Municipality Name *</label>
             <input
               type="text"
               required
               value={municipality.name || ''}
               onChange={(e) => setMunicipality({ ...municipality, name: e.target.value })}
               placeholder="e.g. Guntur Municipal Corporation"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Jurisdiction Code *</label>
+            <label className="block text-xs font-semibold text-[#6B4E71] mb-1">Jurisdiction Code *</label>
             <input
               type="text"
               required
               value={municipality.code || ''}
               onChange={(e) => setMunicipality({ ...municipality, code: e.target.value.toUpperCase() })}
               placeholder="e.g. GMC-01"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white uppercase font-mono focus:outline-none focus:border-blue-500"
+              className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] uppercase font-mono focus:outline-none focus:border-[#C65F63]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">City *</label>
+            <label className="block text-xs font-semibold text-[#6B4E71] mb-1">City *</label>
             <input
               type="text"
               required
               value={municipality.city || ''}
               onChange={(e) => setMunicipality({ ...municipality, city: e.target.value })}
               placeholder="e.g. Guntur"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">State</label>
+            <label className="block text-xs font-semibold text-[#6B4E71] mb-1">State</label>
             <input
               type="text"
               value={municipality.state || ''}
               onChange={(e) => setMunicipality({ ...municipality, state: e.target.value })}
               placeholder="e.g. Andhra Pradesh"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Official Municipal Hotline</label>
+            <label className="block text-xs font-semibold text-[#6B4E71] mb-1">Official Municipal Hotline</label>
             <input
               type="text"
               value={municipality.contactPhone || ''}
               onChange={(e) => setMunicipality({ ...municipality, contactPhone: e.target.value })}
               placeholder="e.g. 0863-2224202"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Commissioner / Support Email</label>
+            <label className="block text-xs font-semibold text-[#6B4E71] mb-1">Commissioner / Support Email</label>
             <input
               type="email"
               value={municipality.contactEmail || ''}
               onChange={(e) => setMunicipality({ ...municipality, contactEmail: e.target.value })}
               placeholder="commissioner@gunturcorporation.org"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
             />
           </div>
         </div>
 
         {/* Recognized Pincodes Chips */}
-        <div className="pt-2 border-t border-slate-800">
-          <label className="block text-xs font-semibold text-slate-300 mb-2">
+        <div className="pt-2 border-t border-[#EFE7E0]">
+          <label className="block text-xs font-semibold text-[#29252A] mb-2">
             Jurisdiction Postal Pincodes:
           </label>
           <div className="flex flex-wrap items-center gap-2 mb-3">
             {municipality.pincodes?.map((p) => (
               <span
                 key={p}
-                className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-950 border border-slate-800 rounded-lg text-xs font-mono text-teal-400"
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#FAF5F0] border border-[#EFE7E0] rounded-lg text-xs font-mono text-[#6B4E71]"
               >
                 <span>{p}</span>
                 <button
                   type="button"
                   onClick={() => handleRemovePincode(p)}
-                  className="text-slate-500 hover:text-rose-400 transition"
+                  className="text-[#6B4E71]/60 hover:text-red-600 transition"
                 >
                   ×
                 </button>
               </span>
             ))}
             {(!municipality.pincodes || municipality.pincodes.length === 0) && (
-              <span className="text-xs text-slate-500 italic">No specific pincodes added.</span>
+              <span className="text-xs text-[#6B4E71]/70 italic">No specific pincodes added.</span>
             )}
           </div>
           <div className="flex items-center gap-2 max-w-sm">
@@ -325,12 +327,12 @@ const AdminSettingsPage = () => {
               value={newPincode}
               onChange={(e) => setNewPincode(e.target.value)}
               placeholder="Add pincode e.g. 522002"
-              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl py-1.5 px-3 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+              className="flex-1 bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-1.5 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63] font-mono"
             />
             <button
               type="button"
               onClick={handleAddPincode}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
+              className="px-3 py-1.5 rounded-xl bg-[#FAF5F0] hover:bg-[#FDECEF] text-[#6B4E71] hover:text-[#C65F63] text-xs font-semibold border border-[#EFE7E0] transition"
             >
               + Add
             </button>
@@ -338,8 +340,8 @@ const AdminSettingsPage = () => {
         </div>
 
         {/* Wards & Service Zones */}
-        <div className="pt-2 border-t border-slate-800">
-          <label className="block text-xs font-semibold text-slate-300 mb-2">
+        <div className="pt-2 border-t border-[#EFE7E0]">
+          <label className="block text-xs font-semibold text-[#29252A] mb-2">
             Municipal Wards & Zones ({municipality.wards?.length || 0} configured):
           </label>
           <div className="max-h-60 overflow-y-auto mb-3">
@@ -347,16 +349,16 @@ const AdminSettingsPage = () => {
               {municipality.wards?.map((w, idx) => (
                 <div
                   key={idx}
-                  className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between text-xs"
+                  className="p-2.5 rounded-xl bg-[#FAF5F0] border border-[#EFE7E0] flex items-center justify-between text-xs"
                 >
                   <div>
-                    <div className="font-bold text-slate-200">{w.wardNumber}: {w.name}</div>
-                    <div className="text-[10px] text-blue-400 font-medium">{w.zone || 'General Zone'}</div>
+                    <div className="font-bold text-[#29252A]">{w.wardNumber}: {w.name}</div>
+                    <div className="text-[10px] text-[#C65F63] font-medium">{w.zone || 'General Zone'}</div>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleRemoveWard(idx)}
-                    className="text-slate-500 hover:text-rose-400 p-1 transition"
+                    className="text-[#6B4E71]/60 hover:text-red-600 p-1 transition"
                   >
                     <HiOutlineTrash className="text-sm" />
                   </button>
@@ -366,32 +368,32 @@ const AdminSettingsPage = () => {
           </div>
 
           {/* Add New Ward Inputs */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 bg-slate-950/50 p-3 rounded-xl border border-slate-800">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 bg-[#FAF5F0] p-3 rounded-xl border border-[#EFE7E0]">
             <input
               type="text"
               value={newWard.wardNumber}
               onChange={(e) => setNewWard({ ...newWard, wardNumber: e.target.value })}
               placeholder="Ward e.g. Ward 9"
-              className="bg-slate-950 border border-slate-800 rounded-lg py-1.5 px-3 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="bg-white border border-[#EFE7E0] rounded-lg py-1.5 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
             />
             <input
               type="text"
               value={newWard.name}
               onChange={(e) => setNewWard({ ...newWard, name: e.target.value })}
               placeholder="Ward Name e.g. Nagarampalem"
-              className="bg-slate-950 border border-slate-800 rounded-lg py-1.5 px-3 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="bg-white border border-[#EFE7E0] rounded-lg py-1.5 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
             />
             <input
               type="text"
               value={newWard.zone}
               onChange={(e) => setNewWard({ ...newWard, zone: e.target.value })}
               placeholder="Zone e.g. Central Zone"
-              className="bg-slate-950 border border-slate-800 rounded-lg py-1.5 px-3 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="bg-white border border-[#EFE7E0] rounded-lg py-1.5 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
             />
             <button
               type="button"
               onClick={handleAddWard}
-              className="py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold shadow transition"
+              className="py-1.5 rounded-lg bg-[#6B4E71] hover:bg-[#583f5e] text-white text-xs font-semibold shadow-sm transition"
             >
               + Add Ward
             </button>
@@ -402,72 +404,72 @@ const AdminSettingsPage = () => {
       <form onSubmit={handleSave} className="space-y-6">
         
         {/* Section 1: General Platform Configuration */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-lg">
-          <h2 className="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
-            <HiOutlineServer className="text-blue-400 text-lg" />
+        <div className="bg-white border border-[#EFE7E0] rounded-2xl p-6 space-y-4 shadow-sm">
+          <h2 className="text-sm font-bold text-[#29252A] flex items-center gap-2 border-b border-[#EFE7E0] pb-3">
+            <HiOutlineServer className="text-[#C65F63] text-lg" />
             <span>Platform Identity & Defaults</span>
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Application Name *</label>
+              <label className="block text-xs font-semibold text-[#6B4E71] mb-1">Application Name *</label>
               <input
                 type="text"
                 required
                 value={settings.appName}
                 onChange={(e) => setSettings({ ...settings, appName: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Official Support / Contact Email *</label>
+              <label className="block text-xs font-semibold text-[#6B4E71] mb-1">Official Support / Contact Email *</label>
               <input
                 type="email"
                 required
                 value={settings.contactEmail}
                 onChange={(e) => setSettings({ ...settings, contactEmail: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
               />
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Platform Tagline</label>
+              <label className="block text-xs font-semibold text-[#6B4E71] mb-1">Platform Tagline</label>
               <input
                 type="text"
                 value={settings.tagline}
                 onChange={(e) => setSettings({ ...settings, tagline: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Default Table Pagination Limit</label>
+              <label className="block text-xs font-semibold text-[#6B4E71] mb-1">Default Table Pagination Limit</label>
               <input
                 type="number"
                 min="5"
                 max="100"
                 value={settings.defaultPageSize}
                 onChange={(e) => setSettings({ ...settings, defaultPageSize: parseInt(e.target.value) || 10 })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
               />
             </div>
           </div>
         </div>
 
         {/* Section 2: SLA Target Times */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-lg">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <HiOutlineClock className="text-blue-400 text-lg" />
+        <div className="bg-white border border-[#EFE7E0] rounded-2xl p-6 space-y-4 shadow-sm">
+          <div className="flex items-center justify-between border-b border-[#EFE7E0] pb-3">
+            <h2 className="text-sm font-bold text-[#29252A] flex items-center gap-2">
+              <HiOutlineClock className="text-[#C65F63] text-lg" />
               <span>SLA Turnaround Deadlines (Target Resolution Hours)</span>
             </h2>
-            <span className="text-[11px] text-slate-400">Enforced during request dispatch</span>
+            <span className="text-[11px] text-[#6B4E71]">Enforced during request dispatch</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="bg-slate-950/60 border border-rose-900/30 rounded-xl p-3 space-y-1">
-              <span className="text-[10px] font-bold text-rose-400 uppercase">CRITICAL Priority</span>
+            <div className="bg-red-50/50 border border-red-200 rounded-xl p-3 space-y-1">
+              <span className="text-[10px] font-bold text-red-600 uppercase">CRITICAL Priority</span>
               <div className="flex items-center gap-1.5">
                 <input
                   type="number"
@@ -477,14 +479,14 @@ const AdminSettingsPage = () => {
                     ...settings,
                     slaTargets: { ...settings.slaTargets, CRITICAL: parseInt(e.target.value) || 1 }
                   })}
-                  className="w-20 bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-xs text-white font-bold text-center"
+                  className="w-20 bg-white border border-red-300 rounded-lg py-1 px-2 text-xs text-[#29252A] font-bold text-center"
                 />
-                <span className="text-xs text-slate-400">Hours</span>
+                <span className="text-xs text-[#6B4E71]">Hours</span>
               </div>
             </div>
 
-            <div className="bg-slate-950/60 border border-amber-900/30 rounded-xl p-3 space-y-1">
-              <span className="text-[10px] font-bold text-amber-400 uppercase">HIGH Priority</span>
+            <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-3 space-y-1">
+              <span className="text-[10px] font-bold text-amber-700 uppercase">HIGH Priority</span>
               <div className="flex items-center gap-1.5">
                 <input
                   type="number"
@@ -494,14 +496,14 @@ const AdminSettingsPage = () => {
                     ...settings,
                     slaTargets: { ...settings.slaTargets, HIGH: parseInt(e.target.value) || 1 }
                   })}
-                  className="w-20 bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-xs text-white font-bold text-center"
+                  className="w-20 bg-white border border-amber-300 rounded-lg py-1 px-2 text-xs text-[#29252A] font-bold text-center"
                 />
-                <span className="text-xs text-slate-400">Hours</span>
+                <span className="text-xs text-[#6B4E71]">Hours</span>
               </div>
             </div>
 
-            <div className="bg-slate-950/60 border border-blue-900/30 rounded-xl p-3 space-y-1">
-              <span className="text-[10px] font-bold text-blue-400 uppercase">MEDIUM Priority</span>
+            <div className="bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl p-3 space-y-1">
+              <span className="text-[10px] font-bold text-[#6B4E71] uppercase">MEDIUM Priority</span>
               <div className="flex items-center gap-1.5">
                 <input
                   type="number"
@@ -511,14 +513,14 @@ const AdminSettingsPage = () => {
                     ...settings,
                     slaTargets: { ...settings.slaTargets, MEDIUM: parseInt(e.target.value) || 1 }
                   })}
-                  className="w-20 bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-xs text-white font-bold text-center"
+                  className="w-20 bg-white border border-[#EFE7E0] rounded-lg py-1 px-2 text-xs text-[#29252A] font-bold text-center"
                 />
-                <span className="text-xs text-slate-400">Hours</span>
+                <span className="text-xs text-[#6B4E71]">Hours</span>
               </div>
             </div>
 
-            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">LOW Priority</span>
+            <div className="bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl p-3 space-y-1">
+              <span className="text-[10px] font-bold text-[#6B4E71]/80 uppercase">LOW Priority</span>
               <div className="flex items-center gap-1.5">
                 <input
                   type="number"
@@ -528,61 +530,61 @@ const AdminSettingsPage = () => {
                     ...settings,
                     slaTargets: { ...settings.slaTargets, LOW: parseInt(e.target.value) || 1 }
                   })}
-                  className="w-20 bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-xs text-white font-bold text-center"
+                  className="w-20 bg-white border border-[#EFE7E0] rounded-lg py-1 px-2 text-xs text-[#29252A] font-bold text-center"
                 />
-                <span className="text-xs text-slate-400">Hours</span>
+                <span className="text-xs text-[#6B4E71]">Hours</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Section 3: Notification & Email Configuration Status */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-lg">
-          <h2 className="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
-            <HiOutlineMail className="text-blue-400 text-lg" />
+        <div className="bg-white border border-[#EFE7E0] rounded-2xl p-6 space-y-4 shadow-sm">
+          <h2 className="text-sm font-bold text-[#29252A] flex items-center gap-2 border-b border-[#EFE7E0] pb-3">
+            <HiOutlineMail className="text-[#C65F63] text-lg" />
             <span>Notification Delivery & Mail Transport</span>
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#FAF5F0] border border-[#EFE7E0]">
               <div>
-                <span className="text-xs font-bold text-white">Email Notifications</span>
-                <p className="text-[11px] text-slate-400">Send status updates & assignments via SMTP</p>
+                <span className="text-xs font-bold text-[#29252A]">Email Notifications</span>
+                <p className="text-[11px] text-[#6B4E71]">Send status updates & assignments via SMTP</p>
               </div>
               <input
                 type="checkbox"
                 checked={settings.enableEmailNotifications}
                 onChange={(e) => setSettings({ ...settings, enableEmailNotifications: e.target.checked })}
-                className="w-4 h-4 accent-blue-600 rounded cursor-pointer"
+                className="w-4 h-4 accent-[#C65F63] rounded cursor-pointer"
               />
             </div>
 
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#FAF5F0] border border-[#EFE7E0]">
               <div>
-                <span className="text-xs font-bold text-white">In-App Live Alerts</span>
-                <p className="text-[11px] text-slate-400">Socket.IO real-time notification popups</p>
+                <span className="text-xs font-bold text-[#29252A]">In-App Live Alerts</span>
+                <p className="text-[11px] text-[#6B4E71]">Socket.IO real-time notification popups</p>
               </div>
               <input
                 type="checkbox"
                 checked={settings.enableInAppNotifications}
                 onChange={(e) => setSettings({ ...settings, enableInAppNotifications: e.target.checked })}
-                className="w-4 h-4 accent-blue-600 rounded cursor-pointer"
+                className="w-4 h-4 accent-[#C65F63] rounded cursor-pointer"
               />
             </div>
           </div>
 
           {/* Secure SMTP Status Display */}
           {emailStatus && (
-            <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex items-center justify-between text-xs">
+            <div className="bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl p-3 flex items-center justify-between text-xs">
               <div className="space-y-0.5">
-                <div className="font-bold text-slate-200">Email Infrastructure Status</div>
-                <div className="text-slate-400 text-[11px]">
-                  Host: <span className="text-slate-300 font-mono">{emailStatus.host}</span> • Port: <span className="font-mono">{emailStatus.port}</span> • Sender: <span className="font-mono">{emailStatus.from}</span>
+                <div className="font-bold text-[#29252A]">Email Infrastructure Status</div>
+                <div className="text-[#6B4E71] text-[11px]">
+                  Host: <span className="text-[#29252A] font-mono">{emailStatus.host}</span> • Port: <span className="font-mono">{emailStatus.port}</span> • Sender: <span className="font-mono">{emailStatus.from}</span>
                 </div>
               </div>
 
               <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                emailStatus.isConfigured ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                emailStatus.isConfigured ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
               }`}>
                 {emailStatus.isConfigured ? 'Production SMTP Live' : 'Dev Simulation Mode'}
               </span>
@@ -591,10 +593,10 @@ const AdminSettingsPage = () => {
         </div>
 
         {/* Section 4: Maintenance Mode */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-lg">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <HiOutlineExclamation className="text-amber-400 text-lg" />
+        <div className="bg-white border border-[#EFE7E0] rounded-2xl p-6 space-y-4 shadow-sm">
+          <div className="flex items-center justify-between border-b border-[#EFE7E0] pb-3">
+            <h2 className="text-sm font-bold text-[#29252A] flex items-center gap-2">
+              <HiOutlineExclamation className="text-[#C65F63] text-lg" />
               <span>Platform Maintenance Mode</span>
             </h2>
 
@@ -605,40 +607,40 @@ const AdminSettingsPage = () => {
                 onChange={(e) => setSettings({ ...settings, maintenanceMode: e.target.checked })}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600"></div>
+              <div className="w-11 h-6 bg-[#EFE7E0] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#C65F63]"></div>
             </label>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Maintenance Broadcast Message</label>
+            <label className="block text-xs font-semibold text-[#6B4E71] mb-1">Maintenance Broadcast Message</label>
             <textarea
               rows="2"
               value={settings.maintenanceMessage}
               onChange={(e) => setSettings({ ...settings, maintenanceMessage: e.target.value })}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
             />
           </div>
         </div>
 
         {/* Section 5: Civic Service Categories Overview */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3 shadow-lg">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <HiOutlineShieldCheck className="text-blue-400 text-lg" />
+        <div className="bg-white border border-[#EFE7E0] rounded-2xl p-6 space-y-3 shadow-sm">
+          <div className="flex items-center justify-between border-b border-[#EFE7E0] pb-3">
+            <h2 className="text-sm font-bold text-[#29252A] flex items-center gap-2">
+              <HiOutlineShieldCheck className="text-[#C65F63] text-lg" />
               <span>Supported Civic Categories</span>
             </h2>
-            <span className="text-[11px] text-slate-400">8 Pre-configured Municipal Domains</span>
+            <span className="text-[11px] text-[#6B4E71]">8 Pre-configured Municipal Domains</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {settings.supportedCategories?.map((cat, idx) => (
               <div
                 key={idx}
-                className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between text-xs"
+                className="p-3 rounded-xl bg-[#FAF5F0] border border-[#EFE7E0] flex items-center justify-between text-xs"
               >
                 <div>
-                  <div className="font-bold text-white">{cat.name}</div>
-                  <div className="text-[10px] text-blue-400 font-mono">{cat.code}</div>
+                  <div className="font-bold text-[#29252A]">{cat.name}</div>
+                  <div className="text-[10px] text-[#C65F63] font-mono">{cat.code}</div>
                 </div>
 
                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>

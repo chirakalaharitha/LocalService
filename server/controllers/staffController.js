@@ -3,6 +3,8 @@ const Request = require('../models/Request');
 const RequestHistory = require('../models/RequestHistory');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const Municipality = require('../models/Municipality');
+const ActivityLog = require('../models/ActivityLog');
 const NOTIFICATION_TYPES = require('../constants/notificationTypes');
 const { createNotification } = require('../services/notificationService');
 const {
@@ -34,87 +36,261 @@ const isAssignedToUser = (request, userId, role) => {
 // @access  Private (STAFF, ADMIN)
 const getAssignedRequests = async (req, res, next) => {
   try {
-    const { status, priority, category, search, sortBy = 'recently_updated' } = req.query;
+    const { status, priority, category, municipality, search, sortBy = 'recently_updated', tab } = req.query;
 
-    const query = {
+    // Strict staff isolation: Only requests actually assigned to current authenticated staff member
+    const staffQuery = {
       $or: [
         { assignedStaff: req.user._id },
         { assignedTo: req.user._id }
       ]
     };
 
+    // Category display metadata & colors
+    const CATEGORY_META = {
+      WATER: { name: 'Water Supply', color: '#38BDF8', icon: '💧' },
+      STREET_LIGHT: { name: 'Streetlights', color: '#F59E0B', icon: '💡' },
+      ROAD: { name: 'Roads & Potholes', color: '#64748B', icon: '🛣️' },
+      GARBAGE: { name: 'Garbage & Sanitation', color: '#10B981', icon: '🗑️' },
+      DRAINAGE: { name: 'Drainage', color: '#06B6D4', icon: '🌊' },
+      PUBLIC_AREA: { name: 'Parks & Greenery', color: '#059669', icon: '🌳' },
+      ELECTRICITY: { name: 'Electricity', color: '#EAB308', icon: '⚡' },
+      OTHER: { name: 'Other Civic Issues', color: '#8B5CF6', icon: '🏛️' }
+    };
+
+    // 1. Fetch ALL requests assigned to this staff member (unfiltered by search/tab) for real aggregate stats
+    const allAssigned = await Request.find(staffQuery)
+      .populate('citizen', 'name email phone profileImage')
+      .populate('department', 'name code')
+      .populate('municipality', 'name code city district state')
+      .lean();
+
+    const now = new Date();
+    const totalAssigned = allAssigned.length;
+
+    // Compute status stats dynamically from this staff's assigned requests only
+    const inProgress = allAssigned.filter(
+      (r) => r.status === 'IN_PROGRESS' || r.status === 'ACCEPTED'
+    ).length;
+
+    const completed = allAssigned.filter(
+      (r) => ['RESOLVED', 'CITIZEN_VERIFIED', 'CLOSED', 'RESOLUTION_SUBMITTED', 'PENDING_VERIFICATION'].includes(r.status)
+    ).length;
+
+    const overdue = allAssigned.filter(
+      (r) => !['RESOLVED', 'CITIZEN_VERIFIED', 'CLOSED', 'RESOLUTION_SUBMITTED', 'PENDING_VERIFICATION'].includes(r.status) && r.slaDeadline && new Date(r.slaDeadline) < now
+    ).length;
+
+    const pending = allAssigned.filter(
+      (r) => ['PENDING', 'ASSIGNED', 'UNDER_REVIEW'].includes(r.status)
+    ).length;
+
+    const highPriority = allAssigned.filter(
+      (r) => r.priority === 'HIGH' || r.priority === 'CRITICAL'
+    ).length;
+
+    // 2. Request Status Overview (Donut chart data calculated strictly from assigned requests)
+    const statusDistribution = [
+      { name: 'Pending', count: pending, color: '#38BDF8' },
+      { name: 'In Progress', count: inProgress, color: '#FB923C' },
+      { name: 'Completed', count: completed, color: '#4ADE80' },
+      { name: 'Overdue', count: overdue, color: '#F87171' }
+    ];
+
+    // 3. Requests by Category (Bar chart data: ONLY categories with count > 0 for this staff member)
+    const categoryCounts = {};
+    allAssigned.forEach((r) => {
+      const catKey = (r.category || 'OTHER').toUpperCase();
+      categoryCounts[catKey] = (categoryCounts[catKey] || 0) + 1;
+    });
+
+    const categoryDistribution = Object.keys(categoryCounts)
+      .filter((catKey) => categoryCounts[catKey] > 0)
+      .map((catKey) => ({
+        key: catKey,
+        name: CATEGORY_META[catKey]?.name || catKey,
+        count: categoryCounts[catKey],
+        color: CATEGORY_META[catKey]?.color || '#38BDF8',
+        icon: CATEGORY_META[catKey]?.icon || '📋'
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    // 4. Build filtered query for Table / List View
+    const query = { ...staffQuery };
+
+    // Status filter
     if (status && status !== 'ALL') {
-      query.status = normalizeStatus(status);
+      const upperStatus = status.toUpperCase();
+      if (upperStatus === 'OVERDUE') {
+        query.status = { $nin: ['RESOLVED', 'CITIZEN_VERIFIED', 'CLOSED', 'RESOLUTION_SUBMITTED', 'PENDING_VERIFICATION'] };
+        query.slaDeadline = { $lt: now };
+      } else if (upperStatus === 'IN_PROGRESS' || upperStatus === 'IN PROGRESS') {
+        query.status = { $in: ['IN_PROGRESS', 'ACCEPTED'] };
+      } else if (upperStatus === 'COMPLETED' || upperStatus === 'RESOLVED') {
+        query.status = { $in: ['RESOLVED', 'CITIZEN_VERIFIED', 'CLOSED', 'RESOLUTION_SUBMITTED', 'PENDING_VERIFICATION'] };
+      } else if (upperStatus === 'PENDING') {
+        query.status = { $in: ['PENDING', 'ASSIGNED', 'UNDER_REVIEW'] };
+      } else {
+        query.status = normalizeStatus(status);
+      }
     }
 
+    // Priority filter
     if (priority && priority !== 'ALL') {
       query.priority = priority.toUpperCase();
     }
 
+    // Category filter
     if (category && category !== 'ALL') {
       query.category = category.toUpperCase();
     }
 
+    // Municipality filter
+    if (municipality && municipality !== 'ALL') {
+      if (mongoose.Types.ObjectId.isValid(municipality)) {
+        query.municipality = municipality;
+      } else {
+        const foundMun = await Municipality.findOne({
+          $or: [
+            { code: municipality.toUpperCase() },
+            { name: { $regex: municipality, $options: 'i' } }
+          ]
+        });
+        if (foundMun) query.municipality = foundMun._id;
+      }
+    }
+
+    // Tab filter for My Work
+    if (tab && tab !== 'ALL') {
+      const upperTab = tab.toUpperCase();
+      if (upperTab === 'PENDING') {
+        query.status = { $in: ['PENDING', 'ASSIGNED', 'UNDER_REVIEW'] };
+      } else if (upperTab === 'IN_PROGRESS') {
+        query.status = { $in: ['IN_PROGRESS', 'ACCEPTED'] };
+      } else if (upperTab === 'COMPLETED' || upperTab === 'RESOLVED') {
+        query.status = { $in: ['RESOLVED', 'CITIZEN_VERIFIED', 'CLOSED', 'RESOLUTION_SUBMITTED', 'PENDING_VERIFICATION'] };
+      } else if (upperTab === 'OVERDUE') {
+        query.status = { $nin: ['RESOLVED', 'CITIZEN_VERIFIED', 'CLOSED', 'RESOLUTION_SUBMITTED', 'PENDING_VERIFICATION'] };
+        query.slaDeadline = { $lt: now };
+      }
+    }
+
+    // Search query
     if (search && search.trim()) {
       query.$and = [
         {
           $or: [
             { title: { $regex: search.trim(), $options: 'i' } },
             { requestId: { $regex: search.trim(), $options: 'i' } },
-            { address: { $regex: search.trim(), $options: 'i' } }
+            { address: { $regex: search.trim(), $options: 'i' } },
+            { city: { $regex: search.trim(), $options: 'i' } }
           ]
         }
       ];
     }
 
-    // Determine sort order
-    let sortOptions = { updatedAt: -1 };
-    if (sortBy === 'newest') sortOptions = { createdAt: -1 };
+    // Sort options
+    let sortOptions = { createdAt: -1 };
     if (sortBy === 'oldest') sortOptions = { createdAt: 1 };
     if (sortBy === 'priority') sortOptions = { priority: -1, createdAt: -1 };
+    if (sortBy === 'recently_updated') sortOptions = { updatedAt: -1 };
 
     const requests = await Request.find(query)
       .populate('citizen', 'name email phone profileImage')
       .populate('department', 'name code')
-      .sort(sortOptions);
+      .populate('municipality', 'name code city district state')
+      .sort(sortOptions)
+      .lean();
 
-    // Compute stats across ALL assigned requests for this staff member
-    const allAssigned = await Request.find({
-      $or: [
-        { assignedStaff: req.user._id },
-        { assignedTo: req.user._id }
-      ]
-    });
-
-    const totalAssigned = allAssigned.length;
-    const pendingAcceptance = allAssigned.filter((r) => r.status === 'ASSIGNED').length;
-    const inProgress = allAssigned.filter(
-      (r) => r.status === 'IN_PROGRESS' || r.status === 'ACCEPTED'
-    ).length;
-    const resolved = allAssigned.filter(
-      (r) => r.status === 'RESOLVED' || r.status === 'CITIZEN_VERIFIED' || r.status === 'RESOLUTION_SUBMITTED'
-    ).length;
-    const highPriority = allAssigned.filter(
-      (r) => r.priority === 'HIGH' || r.priority === 'CRITICAL'
-    ).length;
-
+    // Human-readable SLA & date formatting
     const requestsWithSla = requests.map((r) => {
-      const obj = r.toObject();
-      obj.slaStatus = getSlaStatus(r.slaDeadline, r.status, r.priority);
-      return obj;
+      let humanSla = '-';
+      let slaStatus = 'ON_TIME';
+
+      if (['RESOLVED', 'CITIZEN_VERIFIED', 'CLOSED'].includes(r.status)) {
+        humanSla = '-';
+        slaStatus = 'ON_TIME';
+      } else if (r.slaDeadline) {
+        const diffMs = new Date(r.slaDeadline).getTime() - now.getTime();
+        const diffDays = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
+        if (diffMs <= 0) {
+          humanSla = 'Overdue';
+          slaStatus = 'OVERDUE';
+        } else if (diffDays === 1) {
+          humanSla = '1 day left';
+          slaStatus = 'NEAR_BREACH';
+        } else {
+          humanSla = `${diffDays} days left`;
+          slaStatus = diffDays <= 2 ? 'NEAR_BREACH' : 'ON_TIME';
+        }
+      }
+
+      const assignedDate = r.createdAt
+        ? new Date(r.createdAt).toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          })
+        : '-';
+
+      return {
+        ...r,
+        slaStatus,
+        humanSla,
+        assignedDate
+      };
     });
+
+    // Recent activity stream (strictly for this staff user)
+    let recentActivity = await ActivityLog.find({
+      $or: [
+        { user: req.user._id },
+        { targetType: 'Request', 'metadata.staff': req.user.name }
+      ]
+    })
+      .sort({ createdAt: -1 })
+      .limit(6)
+      .lean();
+
+    if (recentActivity && recentActivity.length > 0) {
+      recentActivity = recentActivity.map((act) => {
+        const diffMin = Math.round((Date.now() - new Date(act.createdAt).getTime()) / 60000);
+        let timeAgo = `${diffMin}m ago`;
+        if (diffMin >= 60 && diffMin < 1440) timeAgo = `${Math.round(diffMin / 60)}h ago`;
+        else if (diffMin >= 1440) timeAgo = `${Math.round(diffMin / 1440)}d ago`;
+        return {
+          ...act,
+          timeAgo
+        };
+      });
+    } else {
+      recentActivity = [];
+    }
 
     res.status(200).json({
       success: true,
       stats: {
         totalAssigned,
-        pendingAcceptance,
         inProgress,
-        resolved,
-        highPriority
+        completed,
+        overdue,
+        pending,
+        pendingCount: pending,
+        pendingAcceptance: pending,
+        resolved: completed,
+        highPriority,
+        overdueCount: overdue,
+        slaOverdueCombined: `${overdue} / ${overdue}`
       },
-      count: requests.length,
-      requests: requestsWithSla
+      statusDistribution,
+      categoryDistribution,
+      count: requestsWithSla.length,
+      totalCount: totalAssigned,
+      requests: requestsWithSla,
+      recentActivity
     });
   } catch (error) {
     next(error);
@@ -134,7 +310,8 @@ const getStaffRequestDetails = async (req, res, next) => {
       .populate('citizen', 'name email phone profileImage')
       .populate('assignedStaff', 'name email phone profileImage')
       .populate('assignedTo', 'name email phone profileImage')
-      .populate('department', 'name code description');
+      .populate('department', 'name code description')
+      .populate('municipality', 'name code city district state');
 
     if (!request) {
       return res.status(404).json({
@@ -244,23 +421,79 @@ const updateRequestStatus = async (req, res, next) => {
       request
     });
 
-    // Notify Citizen with Phase 10 Database-First Notification
-    if (request.citizen) {
+    // Notify Citizen and Admin with Database-First Notifications & Emails
+    const isResolution = targetStatus === 'RESOLVED' || targetStatus === 'PENDING_VERIFICATION';
+    const isInProgress = targetStatus === 'IN_PROGRESS';
+
+    if (isResolution && !request.resolutionEmailSent) {
+      request.resolutionEmailSent = true;
+      await request.save();
+
+      if (request.citizen) {
+        await createNotification({
+          recipient: request.citizen,
+          type: NOTIFICATION_TYPES.REQUEST_RESOLVED,
+          title: 'Your Service Request Has Been Completed',
+          message: `Your request [${request.requestId}] has been completed by field staff.`,
+          request,
+          actor: req.user._id,
+          customEmailFn: (citizenUser) => sendRequestResolvedCitizenEmail({
+            to: citizenUser.email,
+            citizenName: citizenUser.name,
+            request,
+            resolutionNotes: entryNote
+          })
+        });
+      }
+
+      // Notify responsible municipality Admin
+      let munAdmin = null;
+      if (request.municipality) {
+        munAdmin = await User.findOne({
+          role: 'ADMIN',
+          municipality: request.municipality,
+          isActive: true
+        });
+      }
+      if (!munAdmin) {
+        munAdmin = await User.findOne({ role: 'ADMIN', isActive: true });
+      }
+
+      if (munAdmin) {
+        const citizenUser = request.citizen ? await User.findById(request.citizen).select('name') : null;
+        await createNotification({
+          recipient: munAdmin._id,
+          type: NOTIFICATION_TYPES.REQUEST_RESOLVED,
+          title: 'Request Completed by Staff',
+          message: `Request [${request.requestId}] completed by ${req.user.name} (${request.category}). Location: ${request.address}`,
+          request,
+          actor: req.user._id,
+          customEmailFn: (adminUser) => sendRequestResolvedAdminEmail({
+            to: adminUser.email,
+            adminName: adminUser.name,
+            request: {
+              ...request.toObject(),
+              citizen: citizenUser
+            },
+            staffName: req.user.name,
+            resolutionNotes: entryNote,
+            resolutionDate: new Date()
+          })
+        });
+      }
+    } else if (request.citizen) {
       const formattedStatus = targetStatus.replace(/_/g, ' ');
-      const isInProgress = targetStatus === 'IN_PROGRESS';
       await createNotification({
         recipient: request.citizen,
         type: isInProgress
           ? (NOTIFICATION_TYPES.REQUEST_IN_PROGRESS || 'REQUEST_IN_PROGRESS')
-          : (targetStatus === 'RESOLVED' ? NOTIFICATION_TYPES.REQUEST_RESOLVED : NOTIFICATION_TYPES.REQUEST_STATUS_CHANGED),
+          : NOTIFICATION_TYPES.REQUEST_STATUS_CHANGED,
         title: isInProgress
           ? 'Work In Progress'
-          : (targetStatus === 'RESOLVED' ? 'Request Resolved' : 'Request Status Updated'),
+          : 'Request Status Updated',
         message: isInProgress
           ? `Your request [${request.requestId}] is now being worked on by field staff.`
-          : (targetStatus === 'RESOLVED'
-            ? `Your request [${request.requestId}] has been resolved.`
-            : `Your request [${request.requestId}] is now ${formattedStatus}.`),
+          : `Your request [${request.requestId}] is now ${formattedStatus}.`,
         request,
         actor: req.user._id,
         customEmailFn: isInProgress
@@ -458,54 +691,64 @@ const submitResolution = async (req, res, next) => {
       request
     });
 
-    // Notify Citizen of Resolution via Database-First Notification + Real Email
-    if (request.citizen) {
-      await createNotification({
-        recipient: request.citizen,
-        type: NOTIFICATION_TYPES.REQUEST_RESOLVED,
-        title: 'Request Resolved - Verification Required',
-        message: `Your request [${request.requestId}] has been resolved by field staff. Please review resolution and verify.`,
-        request,
-        actor: req.user._id,
-        customEmailFn: (citizenUser) => sendRequestResolvedCitizenEmail({
-          to: citizenUser.email,
-          citizenName: citizenUser.name,
-          request,
-          resolutionNotes: notesContent,
-          resolutionProof: request.resolutionProof
-        })
-      });
-    }
+    // Notify Citizen and Admin of Resolution via Database-First Notifications & Real Emails
+    if (!request.resolutionEmailSent) {
+      request.resolutionEmailSent = true;
+      await request.save();
 
-    // Find and notify responsible municipality Admin (in-app + real email)
-    let munAdmin = null;
-    if (request.municipality) {
-      munAdmin = await User.findOne({
-        role: 'ADMIN',
-        municipality: request.municipality,
-        isActive: true
-      });
-    }
-    if (!munAdmin) {
-      munAdmin = await User.findOne({ role: 'ADMIN', isActive: true });
-    }
-
-    if (munAdmin) {
-      await createNotification({
-        recipient: munAdmin._id,
-        type: NOTIFICATION_TYPES.REQUEST_RESOLVED,
-        title: 'Service Request Resolved by Staff',
-        message: `Request [${request.requestId}] resolved by ${req.user.name} (${request.category}). Location: ${request.address}`,
-        request,
-        actor: req.user._id,
-        customEmailFn: (adminUser) => sendRequestResolvedAdminEmail({
-          to: adminUser.email,
-          adminName: adminUser.name,
+      if (request.citizen) {
+        await createNotification({
+          recipient: request.citizen,
+          type: NOTIFICATION_TYPES.REQUEST_RESOLVED,
+          title: 'Your Service Request Has Been Completed',
+          message: `Your request [${request.requestId}] has been completed by field staff. Please review resolution and verify.`,
           request,
-          staffName: req.user.name,
-          resolutionNotes: notesContent
-        })
-      });
+          actor: req.user._id,
+          customEmailFn: (citizenUser) => sendRequestResolvedCitizenEmail({
+            to: citizenUser.email,
+            citizenName: citizenUser.name,
+            request,
+            resolutionNotes: notesContent,
+            resolutionProof: request.resolutionProof
+          })
+        });
+      }
+
+      // Find and notify responsible municipality Admin (in-app + real email)
+      let munAdmin = null;
+      if (request.municipality) {
+        munAdmin = await User.findOne({
+          role: 'ADMIN',
+          municipality: request.municipality,
+          isActive: true
+        });
+      }
+      if (!munAdmin) {
+        munAdmin = await User.findOne({ role: 'ADMIN', isActive: true });
+      }
+
+      if (munAdmin) {
+        const citizenUser = request.citizen ? await User.findById(request.citizen).select('name') : null;
+        await createNotification({
+          recipient: munAdmin._id,
+          type: NOTIFICATION_TYPES.REQUEST_RESOLVED,
+          title: 'Request Completed by Staff',
+          message: `Request [${request.requestId}] completed by ${req.user.name} (${request.category}). Location: ${request.address}`,
+          request,
+          actor: req.user._id,
+          customEmailFn: (adminUser) => sendRequestResolvedAdminEmail({
+            to: adminUser.email,
+            adminName: adminUser.name,
+            request: {
+              ...request.toObject(),
+              citizen: citizenUser
+            },
+            staffName: req.user.name,
+            resolutionNotes: notesContent,
+            resolutionDate: request.resolvedAt || new Date()
+          })
+        });
+      }
     }
 
     res.status(200).json({

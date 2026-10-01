@@ -3,11 +3,11 @@ const path = require('path');
 const fs = require('fs');
 const dotenv = require('dotenv');
 
-// Ensure authoritative environment variables are loaded
+// Ensure authoritative environment variables are loaded from server/.env exclusively
 const serverEnvPath = path.join(__dirname, '../.env');
-const rootEnvPath = path.join(__dirname, '../../.env');
-if (fs.existsSync(rootEnvPath)) dotenv.config({ path: rootEnvPath });
-if (fs.existsSync(serverEnvPath)) dotenv.config({ path: serverEnvPath, override: true });
+if (fs.existsSync(serverEnvPath)) {
+  dotenv.config({ path: serverEnvPath, override: true });
+}
 
 /**
  * Creates and returns configured Nodemailer SMTP transporter
@@ -524,54 +524,61 @@ const sendNewRequestAdminEmail = async ({ to, adminName, request, citizen }) => 
 /**
  * 2. Staff Email: New Request Assigned
  */
-const sendStaffAssignmentEmail = async ({ to, staffName, request, assignedAt }) => {
+const sendStaffAssignmentEmail = async ({ to, staffName, request, assignedAt, municipalityName }) => {
   if (!to || !request) return { success: false, error: 'Recipient and request required' };
 
-  const subject = 'New Service Request Assigned – LocalFix';
+  const subject = 'LocalFix – New Service Request Assigned to You';
   const reqId = request.requestId || 'LF-REQ';
+  const issueTitle = request.title || `${request.category || 'Civic'} Service Request`;
   const category = request.category || 'General';
   const priority = request.priority || 'MEDIUM';
   const location = request.address || 'Location specified';
+  const munName = municipalityName || request.municipalitySnapshot?.name || request.city || 'Municipal Jurisdiction';
+  const status = request.status || 'ASSIGNED';
   const timeStr = assignedAt ? new Date(assignedAt).toLocaleString() : new Date().toLocaleString();
-  const slaDeadlineStr = request.slaDeadline ? new Date(request.slaDeadline).toLocaleString() : null;
+
+  const text = `Hello ${staffName || 'Staff Member'},\n\nA new service request has been assigned to you.\n\nRequest ID: ${reqId}\nIssue: ${issueTitle}\nCategory: ${category}\nLocation: ${location}\nMunicipality: ${munName}\nPriority: ${priority}\nStatus: ${status}\n\nPlease log in to LocalFix to view and manage the request.\n\nRegards,\nLocalFix Team`;
 
   const bodyHtml = `
-    <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #cbd5e1;">
-      A new municipal service request has been assigned to you by the administrator. Please review the details below and proceed with field inspection.
+    <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #cbd5e1;">
+      A new service request has been assigned to you.
     </p>
 
     <!-- Request Details Box -->
     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #020617; border-radius: 12px; border: 1px solid #334155; margin-bottom: 20px;">
       <tr>
-        <td style="padding: 16px 20px;">
-          <div style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Assigned Task</div>
-          <div style="font-size: 16px; font-weight: 800; color: #38bdf8; margin-top: 2px;">${reqId} - ${request.title || category}</div>
-          
-          <div style="margin-top: 12px; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
-            <strong>Category:</strong> ${category}<br>
-            <strong>Priority:</strong> <span style="color: ${priority === 'CRITICAL' ? '#ef4444' : priority === 'HIGH' ? '#f97316' : '#38bdf8'}; font-weight: 700;">${priority}</span><br>
-            <strong>Location:</strong> ${location}<br>
-            <strong>Assignment Time:</strong> ${timeStr}
-            ${slaDeadlineStr ? `<br><strong>Expected Resolution (SLA):</strong> <span style="color: #f59e0b; font-weight: 700;">${slaDeadlineStr}</span>` : ''}
-          </div>
+        <td style="padding: 16px 20px; font-size: 13px; color: #cbd5e1; line-height: 1.8;">
+          <div><strong style="color: #94a3b8;">Request ID:</strong> <span style="color: #38bdf8; font-weight: 700;">${reqId}</span></div>
+          <div><strong style="color: #94a3b8;">Issue:</strong> <span style="color: #ffffff;">${issueTitle}</span></div>
+          <div><strong style="color: #94a3b8;">Category:</strong> ${category}</div>
+          <div><strong style="color: #94a3b8;">Location:</strong> ${location}</div>
+          <div><strong style="color: #94a3b8;">Municipality:</strong> ${munName}</div>
+          <div><strong style="color: #94a3b8;">Priority:</strong> <span style="color: ${priority === 'CRITICAL' ? '#ef4444' : priority === 'HIGH' ? '#f97316' : '#38bdf8'}; font-weight: 700;">${priority}</span></div>
+          <div><strong style="color: #94a3b8;">Status:</strong> <span style="color: #38bdf8; font-weight: 700;">${status}</span></div>
         </td>
       </tr>
     </table>
 
-    <p style="margin: 0; font-size: 13px; color: #cbd5e1;">
-      Please log in to your staff dashboard to accept this task and start field operations.
+    <p style="margin: 0 0 16px 0; font-size: 13px; color: #cbd5e1;">
+      Please log in to LocalFix to view and manage the request.
+    </p>
+    <p style="margin: 0; font-size: 13px; color: #94a3b8;">
+      Regards,<br>
+      <strong style="color: #ffffff;">LocalFix Team</strong>
     </p>
   `;
 
   return sendEmail({
     to,
     subject,
-    text: `New Service Request Assigned: ${reqId}\nCategory: ${category}\nPriority: ${priority}\nLocation: ${location}\nAssignment Time: ${timeStr}${slaDeadlineStr ? `\nSLA Deadline: ${slaDeadlineStr}` : ''}`,
+    text,
     html: buildEmailTemplate({
       headerTitle: 'Task Assignment',
-      title: `Task Assigned: ${reqId}`,
+      title: 'New Service Request Assigned to You',
       recipientName: staffName,
-      bodyHtml
+      bodyHtml,
+      actionText: 'View in Staff Dashboard',
+      actionUrl: 'http://localhost:5173/staff/dashboard'
     })
   });
 };
@@ -630,47 +637,57 @@ const sendRequestInProgressEmail = async ({ to, citizenName, request }) => {
 const sendRequestResolvedCitizenEmail = async ({ to, citizenName, request, resolutionNotes, resolutionProof }) => {
   if (!to || !request) return { success: false, error: 'Recipient and request required' };
 
-  const subject = 'Your LocalFix Request Has Been Resolved';
+  const subject = 'LocalFix – Your Service Request Has Been Completed';
   const reqId = request.requestId || 'LF-REQ';
+  const issueTitle = request.title || `${request.category || 'Civic'} Service Request`;
   const category = request.category || 'Civic Service';
-  const location = request.address || '';
+  const location = request.address || 'Location specified';
+  const status = 'Completed';
   const notes = resolutionNotes || request.resolutionNotes || 'Field work completed.';
 
+  const text = `Hello ${citizenName || 'Citizen'},\n\nYour service request has been completed by the assigned staff.\n\nRequest ID: ${reqId}\nIssue: ${issueTitle}\nCategory: ${category}\nLocation: ${location}\n\nStatus: ${status}\n\nYou can log in to LocalFix to view the request details and provide verification/feedback if applicable.\n\nRegards,\nLocalFix Team`;
+
   const bodyHtml = `
-    <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #cbd5e1;">
-      Your municipal service request has been marked as resolved by field personnel. Please review the resolution details and verify the work.
+    <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #cbd5e1;">
+      Your service request has been completed by the assigned staff.
     </p>
 
     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #020617; border-radius: 12px; border: 1px solid #334155; margin-bottom: 20px;">
       <tr>
-        <td style="padding: 16px 20px;">
-          <div style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">Resolution Summary</div>
-          <div style="font-size: 16px; font-weight: 800; color: #10b981; margin-top: 2px;">${reqId} - Resolved</div>
-          <div style="margin-top: 8px; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
-            <strong>Category:</strong> ${category}<br>
-            ${location ? `<strong>Location:</strong> ${location}<br>` : ''}
-            <strong>Resolution Notes:</strong> <span style="color: #f1f5f9;">${notes}</span>
-          </div>
+        <td style="padding: 16px 20px; font-size: 13px; color: #cbd5e1; line-height: 1.8;">
+          <div><strong style="color: #94a3b8;">Request ID:</strong> <span style="color: #10b981; font-weight: 700;">${reqId}</span></div>
+          <div><strong style="color: #94a3b8;">Issue:</strong> <span style="color: #ffffff;">${issueTitle}</span></div>
+          <div><strong style="color: #94a3b8;">Category:</strong> ${category}</div>
+          <div><strong style="color: #94a3b8;">Location:</strong> ${location}</div>
+          <div><strong style="color: #94a3b8;">Status:</strong> <span style="color: #10b981; font-weight: 700;">Completed</span> (Awaiting Citizen Verification)</div>
+          ${notes ? `<div><strong style="color: #94a3b8;">Resolution Notes:</strong> <span style="color: #f1f5f9;">${notes}</span></div>` : ''}
         </td>
       </tr>
     </table>
 
-    <div style="background-color: #064e3b/40; border-left: 3px solid #10b981; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px;">
+    <div style="background-color: rgba(16, 185, 129, 0.12); border-left: 3px solid #10b981; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px;">
       <p style="margin: 0; font-size: 12px; color: #a7f3d0; line-height: 1.5;">
-        <strong>Next Step:</strong> Please log in to LocalFix to inspect the before/after photos and click <strong>Verify Resolution</strong> to close the ticket and submit your feedback.
+        You can log in to LocalFix to view the request details and provide verification/feedback if applicable.
       </p>
     </div>
+
+    <p style="margin: 0; font-size: 13px; color: #94a3b8;">
+      Regards,<br>
+      <strong style="color: #ffffff;">LocalFix Team</strong>
+    </p>
   `;
 
   return sendEmail({
     to,
     subject,
-    text: `Hello ${citizenName},\n\nYour service request [${reqId}] has been marked as resolved.\nCategory: ${category}\nLocation: ${location}\nResolution: ${notes}\n\nPlease review the resolution and verify the request in your LocalFix citizen dashboard.`,
+    text,
     html: buildEmailTemplate({
       headerTitle: 'Work Completed',
-      title: `Service Request ${reqId} Resolved`,
+      title: 'Your Service Request Has Been Completed',
       recipientName: citizenName,
-      bodyHtml
+      bodyHtml,
+      actionText: 'View & Verify Request',
+      actionUrl: 'http://localhost:5173/requests'
     })
   });
 };
@@ -678,49 +695,58 @@ const sendRequestResolvedCitizenEmail = async ({ to, citizenName, request, resol
 /**
  * 5. Admin Email: Request Resolved by Staff
  */
-const sendRequestResolvedAdminEmail = async ({ to, adminName, request, staffName, resolutionNotes }) => {
+const sendRequestResolvedAdminEmail = async ({ to, adminName, request, staffName, resolutionNotes, resolutionDate }) => {
   if (!to || !request) return { success: false, error: 'Recipient and request required' };
 
-  const subject = 'Service Request Resolved – LocalFix';
+  const subject = 'LocalFix – Request Completed';
   const reqId = request.requestId || 'LF-REQ';
+  const citizenName = request.citizen?.name || 'Citizen';
   const category = request.category || 'General';
-  const location = request.address || '';
+  const location = request.address || 'Location specified';
+  const staff = staffName || 'Assigned Staff';
+  const status = 'Completed (Pending Verification)';
+  const dateStr = resolutionDate ? new Date(resolutionDate).toLocaleString() : new Date().toLocaleString();
   const notes = resolutionNotes || request.resolutionNotes || 'Field work submitted.';
 
+  const text = `Hello ${adminName || 'Admin'},\n\nA service request has been completed and marked as resolved by staff.\n\nRequest ID: ${reqId}\nCitizen: ${citizenName}\nCategory: ${category}\nLocation: ${location}\nAssigned Staff: ${staff}\nCompletion/Resolution status: ${status}\nResolution date/time: ${dateStr}\n\nRegards,\nLocalFix Team`;
+
   const bodyHtml = `
-    <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #cbd5e1;">
-      Staff member <strong>${staffName || 'Field Staff'}</strong> has submitted completion proof and marked service request <strong>${reqId}</strong> as resolved.
+    <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #cbd5e1;">
+      A service request has been completed and marked as resolved by field staff.
     </p>
 
     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #020617; border-radius: 12px; border: 1px solid #334155; margin-bottom: 20px;">
       <tr>
-        <td style="padding: 16px 20px;">
-          <div style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">Field Resolution Notice</div>
-          <div style="font-size: 16px; font-weight: 800; color: #38bdf8; margin-top: 2px;">${reqId}</div>
-          <div style="margin-top: 8px; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
-            <strong>Resolved By:</strong> ${staffName || 'Staff'}<br>
-            <strong>Category:</strong> ${category}<br>
-            ${location ? `<strong>Location:</strong> ${location}<br>` : ''}
-            <strong>Work Notes:</strong> ${notes}
-          </div>
+        <td style="padding: 16px 20px; font-size: 13px; color: #cbd5e1; line-height: 1.8;">
+          <div><strong style="color: #94a3b8;">Request ID:</strong> <span style="color: #38bdf8; font-weight: 700;">${reqId}</span></div>
+          <div><strong style="color: #94a3b8;">Citizen:</strong> <span style="color: #ffffff;">${citizenName}</span></div>
+          <div><strong style="color: #94a3b8;">Category:</strong> ${category}</div>
+          <div><strong style="color: #94a3b8;">Location:</strong> ${location}</div>
+          <div><strong style="color: #94a3b8;">Assigned Staff:</strong> <span style="color: #ffffff; font-weight: 600;">${staff}</span></div>
+          <div><strong style="color: #94a3b8;">Completion/Resolution status:</strong> <span style="color: #10b981; font-weight: 700;">${status}</span></div>
+          <div><strong style="color: #94a3b8;">Resolution date/time:</strong> ${dateStr}</div>
+          ${notes ? `<div><strong style="color: #94a3b8;">Notes:</strong> ${notes}</div>` : ''}
         </td>
       </tr>
     </table>
 
-    <p style="margin: 0; font-size: 12px; color: #94a3b8;">
-      The ticket is currently awaiting citizen inspection and verification.
+    <p style="margin: 0; font-size: 13px; color: #94a3b8;">
+      Regards,<br>
+      <strong style="color: #ffffff;">LocalFix Team</strong>
     </p>
   `;
 
   return sendEmail({
     to,
     subject,
-    text: `Service Request [${reqId}] resolved by ${staffName}.\nCategory: ${category}\nLocation: ${location}\nNotes: ${notes}`,
+    text,
     html: buildEmailTemplate({
       headerTitle: 'Staff Resolution',
-      title: `Request ${reqId} Resolved by Staff`,
+      title: 'LocalFix – Request Completed',
       recipientName: adminName,
-      bodyHtml
+      bodyHtml,
+      actionText: 'View in Admin Portal',
+      actionUrl: 'http://localhost:5173/admin/requests'
     })
   });
 };

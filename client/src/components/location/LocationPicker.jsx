@@ -109,15 +109,15 @@ const LocationPicker = ({
   );
 
   return (
-    <div className="space-y-4 bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+    <div className="space-y-4 bg-white border border-[#EFE7E0] p-5 rounded-2xl shadow-sm">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#EFE7E0] pb-3">
         <div>
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <HiOutlineMap className="text-blue-400 text-lg" />
+          <h3 className="text-sm font-bold text-[#29252A] flex items-center gap-2">
+            <HiOutlineMap className="text-[#C65F63] text-lg" />
             <span>Location of Issue *</span>
           </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-[#6B4E71] mt-0.5">
             Identify the accurate location using device GPS, address search, or by clicking the map.
           </p>
         </div>
@@ -126,9 +126,9 @@ const LocationPicker = ({
           <button
             type="button"
             onClick={() => setManualEdit(!manualEdit)}
-            className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition"
+            className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FAF5F0] hover:bg-[#FDECEF] text-[#6B4E71] hover:text-[#C65F63] text-xs font-semibold border border-[#EFE7E0] transition"
           >
-            <HiOutlinePencilAlt className="text-sm text-blue-400" />
+            <HiOutlinePencilAlt className="text-sm text-[#C65F63]" />
             <span>{manualEdit ? 'Hide Manual Edit' : 'Edit Address Details'}</span>
           </button>
         )}
@@ -142,7 +142,7 @@ const LocationPicker = ({
 
       {/* Search Input */}
       <div className="space-y-1">
-        <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+        <label className="block text-[11px] font-semibold text-[#6B4E71] uppercase tracking-wider">
           Search Location by Name or Landmark
         </label>
         <LocationSearch
@@ -153,15 +153,15 @@ const LocationPicker = ({
 
       {/* Reverse Geocoding Status Loading Indicator */}
       {geocoding && (
-        <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs flex items-center gap-2 animate-pulse">
-          <div className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+        <div className="p-2.5 rounded-xl bg-[#FDECEF] border border-[#C65F63]/20 text-[#C65F63] text-xs flex items-center gap-2 animate-pulse font-medium">
+          <div className="w-3.5 h-3.5 border-2 border-[#C65F63] border-t-transparent rounded-full animate-spin" />
           <span>Finding address details for selected coordinates...</span>
         </div>
       )}
 
       {/* Interactive Map */}
       <div className="space-y-1">
-        <div className="flex items-center justify-between text-[11px] text-slate-400">
+        <div className="flex items-center justify-between text-[11px] text-[#6B4E71]">
           <span className="font-semibold uppercase tracking-wider">Interactive Map</span>
           <span>Click anywhere to place or drag marker</span>
         </div>
@@ -184,54 +184,54 @@ const LocationPicker = ({
 
       {/* Manual Address Edit Form (Always available or toggled) */}
       {manualEdit && (
-        <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3 pt-3">
-          <div className="text-xs font-bold text-slate-200 border-b border-slate-800 pb-2 flex items-center justify-between">
+        <div className="p-4 rounded-xl bg-[#FAF5F0] border border-[#EFE7E0] space-y-3 pt-3">
+          <div className="text-xs font-bold text-[#29252A] border-b border-[#EFE7E0] pb-2 flex items-center justify-between">
             <span>Manual Address Corrections</span>
-            <span className="text-[10px] text-slate-500 font-normal">Edit if GPS resolved incompletely</span>
+            <span className="text-[10px] text-[#6B4E71]/70 font-normal">Edit if GPS resolved incompletely</span>
           </div>
 
           <div>
-            <label className="block text-[11px] text-slate-400 mb-1">Street / Area / Landmark *</label>
+            <label className="block text-[11px] text-[#6B4E71] mb-1">Street / Area / Landmark *</label>
             <input
               type="text"
               value={location?.address || ''}
               onChange={(e) => handleManualFieldChange('address', e.target.value)}
               placeholder="e.g. Near Community Hall, Main Bazar Road"
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+              className="w-full bg-white border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-[11px] text-slate-400 mb-1">City / Town</label>
+              <label className="block text-[11px] text-[#6B4E71] mb-1">City / Town</label>
               <input
                 type="text"
                 value={location?.city || ''}
                 onChange={(e) => handleManualFieldChange('city', e.target.value)}
                 placeholder="City"
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                className="w-full bg-white border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] text-slate-400 mb-1">State</label>
+              <label className="block text-[11px] text-[#6B4E71] mb-1">State</label>
               <input
                 type="text"
                 value={location?.state || ''}
                 onChange={(e) => handleManualFieldChange('state', e.target.value)}
                 placeholder="State"
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                className="w-full bg-white border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] text-slate-400 mb-1">Pincode</label>
+              <label className="block text-[11px] text-[#6B4E71] mb-1">Pincode</label>
               <input
                 type="text"
                 value={location?.pincode || ''}
                 onChange={(e) => handleManualFieldChange('pincode', e.target.value)}
                 placeholder="Pincode"
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                className="w-full bg-white border border-[#EFE7E0] rounded-xl py-2 px-3 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63]"
               />
             </div>
           </div>

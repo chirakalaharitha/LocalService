@@ -11,18 +11,18 @@ import {
 } from 'react-icons/hi';
 
 const ACTION_COLORS = {
-  STAFF_ASSIGNED: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
-  REQUEST_REASSIGNED: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30',
-  STATUS_UPDATED: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-  USER_ACTIVATED: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-  USER_DEACTIVATED: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
-  SETTINGS_UPDATED: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
-  DEPARTMENT_CREATED: 'bg-teal-500/10 text-teal-400 border-teal-500/30',
-  DEPARTMENT_UPDATED: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
-  DEPARTMENT_DEACTIVATED: 'bg-orange-500/10 text-orange-400 border-orange-500/30',
-  DEPARTMENT_DELETED: 'bg-red-500/10 text-red-400 border-red-500/30',
-  STAFF_ASSIGNED_TO_DEPT: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-  STAFF_REMOVED_FROM_DEPT: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
+  STAFF_ASSIGNED: 'bg-blue-50 text-blue-700 border-blue-200',
+  REQUEST_REASSIGNED: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  STATUS_UPDATED: 'bg-amber-50 text-amber-700 border-amber-200',
+  USER_ACTIVATED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  USER_DEACTIVATED: 'bg-rose-50 text-rose-700 border-rose-200',
+  SETTINGS_UPDATED: 'bg-purple-50 text-purple-700 border-purple-200',
+  DEPARTMENT_CREATED: 'bg-teal-50 text-teal-700 border-teal-200',
+  DEPARTMENT_UPDATED: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+  DEPARTMENT_DEACTIVATED: 'bg-orange-50 text-orange-700 border-orange-200',
+  DEPARTMENT_DELETED: 'bg-red-50 text-red-700 border-red-200',
+  STAFF_ASSIGNED_TO_DEPT: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  STAFF_REMOVED_FROM_DEPT: 'bg-yellow-50 text-yellow-700 border-yellow-200'
 };
 
 const ActivityLogsPage = () => {
@@ -75,20 +75,22 @@ const ActivityLogsPage = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white border border-[#EFE7E0] p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            <HiOutlineClipboardList className="text-teal-400 text-2xl" />
+          <h1 className="text-2xl font-bold text-[#29252A] tracking-tight flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-[#FDECEF] text-[#C65F63] flex items-center justify-center">
+              <HiOutlineClipboardList className="text-xl" />
+            </div>
             <span>Administrative Audit Activity Logs</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-[#6B4E71] mt-1">
             Immutable audit record of administrative actions, user changes, and system modifications
           </p>
         </div>
         <button
           onClick={fetchLogs}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-3.5 py-2 bg-[#FAF5F0] hover:bg-[#FDECEF] text-[#6B4E71] hover:text-[#C65F63] text-xs font-semibold rounded-xl border border-[#EFE7E0] transition disabled:opacity-50"
         >
           <HiOutlineRefresh className={`text-base ${loading ? 'animate-spin' : ''}`} />
           <span>Refresh Logs</span>
@@ -96,24 +98,24 @@ const ActivityLogsPage = () => {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col sm:flex-row gap-3 items-center justify-between">
+      <div className="bg-white border border-[#EFE7E0] p-4 rounded-2xl flex flex-col sm:flex-row gap-3 items-center justify-between shadow-sm">
         <div className="relative w-full sm:w-80">
-          <HiOutlineSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-base" />
+          <HiOutlineSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B4E71] text-base" />
           <input
             type="text"
             placeholder="Search by user, action, or target ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-500"
+            className="w-full bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl pl-9 pr-4 py-2 text-xs text-[#29252A] placeholder-[#6B4E71]/60 focus:outline-none focus:border-[#C65F63]"
           />
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <HiOutlineFilter className="text-slate-400 text-sm hidden sm:inline" />
+          <HiOutlineFilter className="text-[#6B4E71] text-sm hidden sm:inline" />
           <select
             value={selectedAction}
             onChange={(e) => setSelectedAction(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-teal-500 w-full sm:w-auto"
+            className="bg-[#FAF5F0] border border-[#EFE7E0] rounded-xl px-3 py-2 text-xs text-[#29252A] focus:outline-none focus:border-[#C65F63] w-full sm:w-auto"
           >
             <option value="ALL">All Action Events ({logs.length})</option>
             {uniqueActions.map((act) => (
@@ -126,17 +128,17 @@ const ActivityLogsPage = () => {
       </div>
 
       {/* Logs Table Card */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+      <div className="bg-white border border-[#EFE7E0] rounded-2xl overflow-hidden shadow-sm">
         {loading ? (
           <div className="py-20 text-center space-y-3">
-            <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto" />
-            <div className="text-xs text-slate-400">Loading audit log entries from database...</div>
+            <div className="w-8 h-8 border-2 border-[#C65F63] border-t-transparent rounded-full animate-spin mx-auto" />
+            <div className="text-xs text-[#6B4E71]">Loading audit log entries from database...</div>
           </div>
         ) : filteredLogs.length === 0 ? (
           <div className="py-20 text-center space-y-2">
-            <HiOutlineClipboardList className="mx-auto text-4xl text-slate-600" />
-            <h3 className="text-sm font-bold text-slate-300">No activity logs found</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            <HiOutlineClipboardList className="mx-auto text-4xl text-[#6B4E71]/40" />
+            <h3 className="text-sm font-bold text-[#29252A]">No activity logs found</h3>
+            <p className="text-xs text-[#6B4E71] max-w-sm mx-auto">
               {logs.length === 0
                 ? 'No administrative actions have been logged yet.'
                 : 'No logs match your current search or action filter criteria.'}
@@ -144,8 +146,8 @@ const ActivityLogsPage = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-950/80 text-slate-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-800">
+            <table className="w-full text-left text-xs text-[#29252A]">
+              <thead className="bg-[#FAF5F0] text-[#6B4E71] uppercase font-semibold text-[10px] tracking-wider border-b border-[#EFE7E0]">
                 <tr>
                   <th className="py-3.5 px-4">Timestamp</th>
                   <th className="py-3.5 px-4">Admin Actor</th>
@@ -154,17 +156,17 @@ const ActivityLogsPage = () => {
                   <th className="py-3.5 px-4">Event Details / Metadata</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 font-sans">
+              <tbody className="divide-y divide-[#EFE7E0] font-sans">
                 {filteredLogs.map((log) => {
                   const badgeClass =
-                    ACTION_COLORS[log.action] || 'bg-slate-800 text-slate-300 border-slate-700';
+                    ACTION_COLORS[log.action] || 'bg-[#FAF5F0] text-[#6B4E71] border-[#EFE7E0]';
 
                   return (
-                    <tr key={log._id} className="hover:bg-slate-800/30 transition">
+                    <tr key={log._id} className="hover:bg-[#FAF5F0]/60 transition">
                       {/* Timestamp */}
-                      <td className="py-3.5 px-4 text-slate-400 whitespace-nowrap font-mono text-[11px]">
+                      <td className="py-3.5 px-4 text-[#6B4E71] whitespace-nowrap font-mono text-[11px]">
                         <div className="flex items-center gap-1.5">
-                          <HiOutlineClock className="text-slate-500" />
+                          <HiOutlineClock className="text-[#6B4E71]" />
                           <span>{new Date(log.createdAt).toLocaleString()}</span>
                         </div>
                       </td>
@@ -172,14 +174,14 @@ const ActivityLogsPage = () => {
                       {/* User / Actor */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-teal-400 text-xs">
+                          <div className="w-6 h-6 rounded-full bg-[#FDECEF] flex items-center justify-center text-[#C65F63] text-xs">
                             <HiOutlineUser />
                           </div>
                           <div>
-                            <div className="font-bold text-slate-200">
+                            <div className="font-bold text-[#29252A]">
                               {log.user?.name || 'System Operator'}
                             </div>
-                            <div className="text-[10px] text-slate-500 font-mono">
+                            <div className="text-[10px] text-[#6B4E71] font-mono">
                               {log.user?.role || 'SYSTEM'}
                             </div>
                           </div>
@@ -197,9 +199,9 @@ const ActivityLogsPage = () => {
 
                       {/* Target */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className="font-semibold text-slate-300">{log.targetType || 'N/A'}</div>
+                        <div className="font-semibold text-[#29252A]">{log.targetType || 'N/A'}</div>
                         {log.targetId && (
-                          <div className="text-[10px] font-mono text-slate-500 truncate max-w-[120px]">
+                          <div className="text-[10px] font-mono text-[#6B4E71] truncate max-w-[120px]">
                             {log.targetId.toString()}
                           </div>
                         )}
@@ -210,13 +212,13 @@ const ActivityLogsPage = () => {
                         {log.metadata && Object.keys(log.metadata).length > 0 ? (
                           <button
                             onClick={() => setActiveMetadataModal(log)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800/80 hover:bg-slate-700 text-teal-300 text-[11px] font-mono transition border border-slate-700"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#FAF5F0] hover:bg-[#FDECEF] text-[#6B4E71] hover:text-[#C65F63] text-[11px] font-mono transition border border-[#EFE7E0]"
                           >
                             <HiOutlineInformationCircle className="text-xs" />
                             <span>View Payload ({Object.keys(log.metadata).length} keys)</span>
                           </button>
                         ) : (
-                          <span className="text-slate-600 text-[11px] italic">None</span>
+                          <span className="text-[#6B4E71]/50 text-[11px] italic">None</span>
                         )}
                       </td>
                     </tr>
@@ -230,25 +232,25 @@ const ActivityLogsPage = () => {
 
       {/* Metadata Detail Modal */}
       {activeMetadataModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-[#EFE7E0] rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#EFE7E0] pb-3">
               <div>
-                <h3 className="text-sm font-bold text-white">Event Audit Metadata</h3>
-                <p className="text-[11px] text-slate-400 font-mono">
+                <h3 className="text-sm font-bold text-[#29252A]">Event Audit Metadata</h3>
+                <p className="text-[11px] text-[#6B4E71] font-mono">
                   {activeMetadataModal.action} • {activeMetadataModal.targetType}
                 </p>
               </div>
               <button
                 onClick={() => setActiveMetadataModal(null)}
-                className="text-slate-400 hover:text-white text-lg p-1"
+                className="text-[#6B4E71] hover:text-[#29252A] text-lg p-1"
               >
                 ✕
               </button>
             </div>
 
-            <div className="bg-slate-950 rounded-xl p-4 border border-slate-800/80 overflow-x-auto">
-              <pre className="text-xs font-mono text-emerald-400 whitespace-pre-wrap">
+            <div className="bg-[#FAF5F0] rounded-xl p-4 border border-[#EFE7E0] overflow-x-auto">
+              <pre className="text-xs font-mono text-[#29252A] whitespace-pre-wrap">
                 {JSON.stringify(activeMetadataModal.metadata, null, 2)}
               </pre>
             </div>
@@ -256,7 +258,7 @@ const ActivityLogsPage = () => {
             <div className="flex justify-end">
               <button
                 onClick={() => setActiveMetadataModal(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition"
+                className="px-4 py-2 bg-[#FAF5F0] hover:bg-[#FDECEF] text-[#6B4E71] hover:text-[#C65F63] text-xs font-semibold rounded-xl border border-[#EFE7E0] transition"
               >
                 Close
               </button>

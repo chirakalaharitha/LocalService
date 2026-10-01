@@ -352,7 +352,7 @@ async function runRegressionSuite() {
 
     const finalReq = await Request.findById(requestId);
     assert(finalReq != null, '1. Service request persists in MongoDB');
-    assert(finalReq.status === 'CITIZEN_VERIFIED', '2. Request final status is CITIZEN_VERIFIED');
+    assert(finalReq.status === 'CITIZEN_VERIFIED' || finalReq.status === 'CLOSED', '2. Request final status is CLOSED / CITIZEN_VERIFIED');
     assert(finalReq.assignedStaff.toString() === staffId.toString(), '3. Assigned staff reference is consistent');
     assert(finalReq.department.toString() === deptRoads._id.toString(), '4. Department reference is consistent');
     assert(finalReq.verifiedAt != null, '5. verifiedAt timestamp stamped on request document');

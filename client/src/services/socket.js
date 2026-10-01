@@ -2,7 +2,16 @@ import { io } from 'socket.io-client';
 
 let socket = null;
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+const getSocketUrl = () => {
+  if (import.meta.env.VITE_SOCKET_URL) return import.meta.env.VITE_SOCKET_URL.replace(/\/+$/, '');
+  if (import.meta.env.VITE_SERVER_URL) return import.meta.env.VITE_SERVER_URL.replace(/\/+$/, '');
+  if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.startsWith('http')) {
+    return import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '').replace(/\/+$/, '');
+  }
+  return window.location.origin;
+};
+
+const SOCKET_URL = getSocketUrl();
 
 export const getSocket = () => {
   if (!socket) {
